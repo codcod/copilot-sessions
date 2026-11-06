@@ -52,3 +52,13 @@ hand**; hand-written planning notes go in `tickets/NOTES.md`. Every ticket move 
 the file + one dated `## History` line, and the board regenerates. Prefer
 `pickle ticket move` — it does all of it atomically.
 <!-- pickle:end -->
+
+## Platform
+
+Developed on macOS; the binary targets Linux (WSL) and reads `/proc` for process
+detection. Consequences:
+
+- Tests that need `/proc` skip on non-Linux (`runtime.GOOS != "linux"`); everything
+  else runs on both.
+- Validate `/proc`-dependent behaviour on Linux/WSL before a ticket leaves review.
+- Build for the target with `GOOS=linux GOARCH=amd64` (no CGO).
