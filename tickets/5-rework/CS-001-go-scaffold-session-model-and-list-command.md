@@ -402,6 +402,15 @@ Checklist:
 - [ ] Impact sweep (step 8): deferred to the concluding review.
 - [ ] Summary and approval (step 9): deferred to the concluding review.
 
+### Rework fix record — round 1 (commit 5d0fae1)
+
+The branch tip before the fix was `076b245`.
+
+- **F1.** `openDB` builds the DSN from `url.URL{Scheme: "file", OmitHost: true, Path: p, RawQuery: …}`, so `?`, `#` and `%` in the path are escaped. Test `TestLoadEdgePaths` loads a home named `h#x?y%z` and checks that no stray file appears next to it. It fails on `076b245` with `invalid URL escape`.
+- **F2.** `dirSize` resolves the root with `filepath.EvalSymlinks` before `WalkDir`. The test sizes a symlinked session dir holding 5000 bytes; on `076b245` it gave 0.
+- **F3.** `sessionDirs` returns the `ReadDir` error, which `Load` propagates. A missing `session-state/`, or one that isn't a directory, still means no sessions, as in the script. The test uses a `000` `session-state/` and is guarded to non-root, because Docker runs as root. On `076b245` it returned no error.
+- Acceptance re-run green: gofmt, vet, `go test ./...` on macOS, Docker `golang:1.26` (`TestLoadEdgePaths` PASS), build, `--until nope` exits 2, empty home, Parity PASS.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md (Go rewrite of copilot-sessions); foundation ticket
