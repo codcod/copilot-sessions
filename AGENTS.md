@@ -60,5 +60,7 @@ detection. Consequences:
 
 - Tests that need `/proc` skip on non-Linux (`runtime.GOOS != "linux"`); everything
   else runs on both.
-- Validate `/proc`-dependent behaviour on Linux/WSL before a ticket leaves review.
+- Validate `/proc`-dependent behaviour on Linux before a ticket leaves review:
+  `just test-linux` runs the suite in a Docker container from macOS. Checks against
+  real Copilot data (the CS-005 cutover) still run on WSL.
 - Build for the target with `GOOS=linux GOARCH=amd64` (no CGO).
