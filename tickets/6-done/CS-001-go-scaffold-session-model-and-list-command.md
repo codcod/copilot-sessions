@@ -447,3 +447,4 @@ Checklist (concluding):
 - 2026-11-06 — IN REVIEW → REWORK: review round 1: 3 blocking (F1 DSN path escaping, F2 symlinked dir size, F3 unreadable session-state)
 - 2026-11-06 — REWORK → IN REVIEW: findings fixed
 - 2026-11-06 — IN REVIEW → DONE: review round 2 clean: F1–F3 fixed in rework; F4, F12 fixed inline; F5–F11 noted; no new tickets
+- 2026-11-06 — merged to main (PR #1, 533c9c0, https://github.com/codcod/copilot-sessions/commit/533c9c0)

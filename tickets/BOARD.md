@@ -57,7 +57,7 @@ Last updated: 2026-11-06
 
 | id | title | merged |
 |---|---|---|
-| CS-001 | Go scaffold, session model and list command | no — publish-gated |
+| CS-001 | Go scaffold, session model and list command | yes — merged to main (PR #1, 533c9c0, https://github.com/codcod/copilot-sessions/commit/533c9c0) |
 
 ## DROPPED
 
