@@ -2,7 +2,7 @@
 id: CS-006
 title: justfile for build, test, lint and install
 project: copilot-sessions
-depends-on: []
+depends-on: [CS-001]
 spawned-by: []
 impact: medium
 complexity: low
