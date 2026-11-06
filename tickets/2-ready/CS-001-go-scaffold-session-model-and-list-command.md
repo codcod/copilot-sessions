@@ -97,6 +97,10 @@ nothing: `git fetch origin main && git diff --name-only origin/main...HEAD | gre
      local time when it prints them.
    - DATE accepts only `YYYY-MM-DD`. Python's `fromisoformat` also accepts other forms such
      as `20261106`.
+   - The script crashes (`TypeError` in `sorted_sessions`) when a timestamp without a zone
+     is sorted next to ones with a zone. Go parses it as UTC and does not crash.
+   - Equal `updated` values break ties by ID in Go. The script keeps insertion order
+     (`iterdir`, then DB rows).
 3. **The seams live in one struct.** `cli.Env{Home, BackupDir string; Stdin io.Reader;
    Stdout, Stderr io.Writer; IsTTY func() bool; Now func() time.Time; AncestorPIDs
    func() map[int]bool}`. `cli.DefaultEnv()` fills it from the process environment.
@@ -263,6 +267,9 @@ nothing: `git fetch origin main && git diff --name-only origin/main...HEAD | gre
     longer than 60 runes that contains a multibyte rune.
   - **DB-only:** in `sessions` only, with a `summary`, a `cwd` and an `updated_at`.
 - **Spread of dates.** The sessions fall on at least three different local dates.
+  Every fixture timestamp carries a zone, and all `updated` values are distinct, so the
+  Python parity run neither crashes nor reorders ties (decision 2). Zone-less parsing is
+  tested in a `session` unit test with its own temp home.
 - **Ignored entries.** `session-state/.session-operation-locks/x.lock`, a hidden
   `.other/` directory and a plain file in `session-state/` must not be read as sessions.
 - **UI state.** `open-sessions-state.json` also holds an extra key, and
@@ -365,3 +372,4 @@ COPILOT_HOME=$(mktemp -d) ./copilot-sessions list   # "No sessions match."
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md (Go rewrite of copilot-sessions); foundation ticket
 - 2026-11-06 — TO DO → READY: plan complete
+- 2026-11-06 — plan amended inline: applicability gate F1/F2 — fixture timestamps all zoned and distinct `updated` values; zone-less crash and tie-break order added to decision 2's known conflicts. F3 (pin `go 1.26.0` in go.mod) noted and closed.
