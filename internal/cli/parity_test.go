@@ -1,0 +1,109 @@
+package cli
+
+import (
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/codcod/copilot-sessions/internal/session"
+	"github.com/codcod/copilot-sessions/internal/testfix"
+)
+
+// TestParity compares list output with the Python reference script on the same fixture.
+// It skips unless python3 is on PATH.
+func TestParity(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not on PATH")
+	}
+	script, _ := filepath.Abs("../../development/copilot-sessions.sh")
+	if _, err := os.Stat(script); err != nil {
+		t.Skip("reference script missing")
+	}
+	fx := testfix.Build(t)
+	ancestors := session.DefaultAncestors()
+
+	py := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command(python, append([]string{"-I", script}, args...)...)
+		cmd.Env = append(os.Environ(), "TZ=XST-2", "COPILOT_HOME="+fx.Home, "COPILOT_BACKUP_DIR="+fx.BackupDir)
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("python %v: %v", args, err)
+		}
+		return string(out)
+	}
+	goRun := func(args ...string) string {
+		t.Helper()
+		out, errOut, code := run(fx, ancestors, args...)
+		if code != 0 {
+			t.Fatalf("go %v: exit %d: %s", args, code, errOut)
+		}
+		return out
+	}
+
+	filters := [][]string{
+		nil,
+		{"aaaa1"},
+		{"--until", "2026-11-01"},
+		{"--since", "2026-11-04"},
+		{"--status", "stale,closed"},
+		{"--cwd", "/home/u/proj"},
+		{"--grep", "SESSION"},
+		{"--empty"},
+		{"-s", "closed", "-c", "/home/u", "-S", "2026-10-02"},
+		{"--grep", "no-such-name"},
+	}
+	for _, f := range filters {
+		args := append([]string{"list"}, f...)
+		if got, want := withoutSize(goRun(args...)), withoutSize(py(args...)); got != want {
+			t.Errorf("%v:\ngo:\n%s\npython:\n%s", args, got, want)
+		}
+		args = append(args, "-q")
+		if got, want := goRun(args...), py(args...); got != want {
+			t.Errorf("%v:\ngo:\n%s\npython:\n%s", args, got, want)
+		}
+		args = append(args, "--json")
+		if got, want := normJSON(t, goRun(args...)), normJSON(t, py(args...)); !reflect.DeepEqual(got, want) {
+			t.Errorf("%v:\ngo:     %v\npython: %v", args, got, want)
+		}
+	}
+}
+
+// withoutSize drops the SIZE column and the summary's total size.
+func withoutSize(out string) string {
+	lines := strings.Split(out, "\n")
+	for i, l := range lines {
+		switch {
+		case strings.Contains(l, " sessions ("):
+			lines[i] = l[:strings.LastIndex(l, ", ")]
+		case len(l) >= 44 && strings.HasPrefix(l, "  "):
+			lines[i] = l[:36] + l[44:]
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// normJSON parses the JSON output and replaces updated_at with its instant.
+func normJSON(t *testing.T, out string) []map[string]any {
+	t.Helper()
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(out), &rows); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, r := range rows {
+		if s, ok := r["updated_at"].(string); ok {
+			ts, err := time.Parse(time.RFC3339Nano, s)
+			if err != nil {
+				t.Fatalf("updated_at %q: %v", s, err)
+			}
+			r["updated_at"] = ts.UnixNano()
+		}
+	}
+	return rows
+}
