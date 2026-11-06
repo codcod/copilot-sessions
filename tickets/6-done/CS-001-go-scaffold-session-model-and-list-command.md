@@ -402,14 +402,40 @@ Checklist:
 - [ ] Impact sweep (step 8): deferred to the concluding review.
 - [ ] Summary and approval (step 9): deferred to the concluding review.
 
-### Rework fix record — round 1 (commit 5d0fae1)
+### Rework fix record — round 1 (commit da1fdef)
 
-The branch tip before the fix was `076b245`.
+The branch tip before the fix was `8f59b7c`. These SHAs are after the rebase onto `main`; the pre-rebase `076b245..5d0fae1` has identical code (review F12).
 
 - **F1.** `openDB` builds the DSN from `url.URL{Scheme: "file", OmitHost: true, Path: p, RawQuery: …}`, so `?`, `#` and `%` in the path are escaped. Test `TestLoadEdgePaths` loads a home named `h#x?y%z` and checks that no stray file appears next to it. It fails on `076b245` with `invalid URL escape`.
 - **F2.** `dirSize` resolves the root with `filepath.EvalSymlinks` before `WalkDir`. The test sizes a symlinked session dir holding 5000 bytes; on `076b245` it gave 0.
 - **F3.** `sessionDirs` returns the `ReadDir` error, which `Load` propagates. A missing `session-state/`, or one that isn't a directory, still means no sessions, as in the script. The test uses a `000` `session-state/` and is guarded to non-root, because Docker runs as root. On `076b245` it returned no error.
 - Acceptance re-run green: gofmt, vet, `go test ./...` on macOS, Docker `golang:1.26` (`TestLoadEdgePaths` PASS), build, `--until nope` exits 2, empty home, Parity PASS.
+
+
+### Review — round 2, scoped re-review (2026-11-06)
+
+A fresh delegated reviewer (`hunt: one pass`) covered F1–F3 and the fix diff `8f59b7c..da1fdef`. F1, F2 and F3 are verified fixed. `TestLoadEdgePaths` fails on all three parts against the pre-fix code and passes on HEAD. The acceptance test was re-run verbatim and is green on macOS and Docker; Parity PASS.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F11 | non-blocking | correctness | noted | `sessionDirs` treats any `Stat` error on `session-state/` as "no sessions", and silently skips entries it cannot stat. A `000` COPILOT_HOME, or a `444` `session-state/`, gives an empty or partial view with exit 0. | Reproduced by the delegated reviewer. Python behaves the same (`Path.is_dir` is False on any OSError), so parity holds. | CS-002 decides whether its "all known sessions" clear needs a stricter view. A pointer is added to CS-002. |
+| F12 | non-blocking | other | fixed inline | The round-1 fix record named pre-rebase SHAs that are not on the branch. | `git branch --contains 5d0fae1` is empty. | The record now names `8f59b7c..da1fdef`, with a note. |
+
+Disposition summary (round 2): 0 blocking; 1 fixed inline (F12); 1 noted (F11). Overall: F1–F3 fixed in rework; F4, F12 fixed inline; F5–F11 noted; 0 folded; 0 new tickets.
+cost: estimated L, actual L
+
+Checklist (concluding):
+
+- [x] Reviewer independence: every audit was delegated to fresh reviewers (round 1, angle 7 plus steps 1–4a; round 2, one pass). The host `/code-review` tool ran at top level in round 1. Discards are listed in round 1.
+- [x] In-tree stale-branch check: `pickle doctor` was run after each rebase, with no stale-ticket warning. The `AGENTS.md` marker drift predates this branch.
+- [x] Implementation audit, with the fix diff read for new defects (F11, F12).
+- [x] Correctness hunt: round 1 used the host tool plus angle 7; round 2 was a one-pass hunt over the fix diff.
+- [x] Consistency audit, documentation audit, and docs-readability (conscious skip, as in round 1).
+- [x] Findings recorded, with summary and cost lines.
+- [x] Ticket moved to `6-done/`, with a History line.
+- [x] Other references and governing docs: `development/spec.md` and `AGENTS.md` are still accurate. No other ticket cites behaviour this branch changed.
+- [x] Impact sweep: CS-006's assumptions (`./cmd/copilot-sessions`, `main.Version`, `golang:1.26`) hold. CS-002 got a pointer to F5 and F11. CS-003, CS-004 and CS-005 are unaffected.
+- [x] Summary, commit messages and MR attributes presented for approval; next ticket suggested.
 
 ## History
 
@@ -420,3 +446,4 @@ The branch tip before the fix was `076b245`.
 - 2026-11-06 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-06 — IN REVIEW → REWORK: review round 1: 3 blocking (F1 DSN path escaping, F2 symlinked dir size, F3 unreadable session-state)
 - 2026-11-06 — REWORK → IN REVIEW: findings fixed
+- 2026-11-06 — IN REVIEW → DONE: review round 2 clean: F1–F3 fixed in rework; F4, F12 fixed inline; F5–F11 noted; no new tickets

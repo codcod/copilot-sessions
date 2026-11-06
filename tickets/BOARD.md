@@ -20,11 +20,10 @@ Last updated: 2026-11-06
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-001 | Go scaffold, session model and list command | [] |
 
 ## REWORK
 
@@ -58,6 +57,7 @@ Last updated: 2026-11-06
 
 | id | title | merged |
 |---|---|---|
+| CS-001 | Go scaffold, session model and list command | no — publish-gated |
 
 ## DROPPED
 

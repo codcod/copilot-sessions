@@ -47,7 +47,7 @@ Implements `development/spec.md` §6.2, using the filters and session model from
      the original mode kept, 2-space indent, a trailing newline and no HTML escaping.
 - **Tests.** §9 cases 5–9. Case 7 injects the ancestor-PID provider.
 
-Soft coupling: builds on CS-001 (the session model, filters, fixture and seams). CS-004's
+Soft coupling: builds on CS-001 (the session model, filters, fixture and seams). CS-001 review findings F5 (unsanitised names/IDs) and F11 (an unstattable `session-state/` reads as empty, like the script) bear on `clean`'s "all known sessions" full clear; decide whether that needs a stricter view. CS-004's
 round-trip test uses `clean --all`.
 
 ## Implementation Plan
@@ -61,3 +61,4 @@ round-trip test uses `clean --all`.
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.2 (Go rewrite of copilot-sessions)
+- 2026-11-06 — impact sweep from CS-001 review: added pointer to CS-001 findings F5 and F11.
