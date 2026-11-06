@@ -2,7 +2,7 @@
 id: CS-005
 title: Shell completion, install and cutover from the Python script
 project: copilot-sessions
-depends-on: [CS-001, CS-002, CS-003, CS-004]
+depends-on: [CS-001, CS-002, CS-003, CS-004, CS-006]
 spawned-by: []
 impact: medium
 complexity: low
