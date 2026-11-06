@@ -419,3 +419,4 @@ The branch tip before the fix was `076b245`.
 - 2026-11-06 — READY → IN DEVELOPMENT: picked up
 - 2026-11-06 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-06 — IN REVIEW → REWORK: review round 1: 3 blocking (F1 DSN path escaping, F2 symlinked dir size, F3 unreadable session-state)
+- 2026-11-06 — REWORK → IN REVIEW: findings fixed
