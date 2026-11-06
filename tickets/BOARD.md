@@ -20,11 +20,10 @@ Last updated: 2026-11-06
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-001 | Go scaffold, session model and list command | [] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-06
 
 | id | title | open findings |
 |---|---|---|
+| CS-001 | Go scaffold, session model and list command | review round 1: 3 blocking (F1 DSN path escaping, F2 symlinked dir size, F3 unreadable session-state) |
 
 ## READY (impact order, per child)
 

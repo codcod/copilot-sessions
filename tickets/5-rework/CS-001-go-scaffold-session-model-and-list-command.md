@@ -366,7 +366,41 @@ COPILOT_HOME=$(mktemp -d) ./copilot-sessions list   # "No sessions match."
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review — round 1 (2026-11-06)
+
+Branch `feat/CS-001-go-scaffold-session-model-and-list`, reviewed at `7478991` (rebased onto
+`main` after `pickle doctor` flagged the stale ticket copy).
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | `openDB` builds the SQLite DSN by concatenating the raw path into a `file:` URI. A `?` or `#` in `COPILOT_HOME` cuts the path, so the driver opens (and creates) a different file. This breaks CS-001 decision 7. | Reproduced: home `…/h#x` with a valid DB → `error: read session-store.db: SQL logic error: no such table: sessions`, exit 1, and an empty file `…/h` is created. Python prints the session. `internal/session/session.go` `openDB`. | Build the DSN from a `url.URL` with an escaped path. Add a test with `#` and `?` in the home path. |
+| F2 | blocking | correctness | — | `dirSize` reports 0 for a session directory that is a symlink: `filepath.WalkDir` does not follow a symlinked root, but `sessionDirs` accepts symlinked dirs. Python's `os.walk` follows the top-level link. | Reproduced by the code-review tool: `session-state/abc` → a dir with a 5000-byte file gives `0B`. Traced: `WalkDir` uses `Lstat` on the root, so `d.Type()` is a symlink and nothing is descended. | Resolve the root with `filepath.EvalSymlinks` before walking. Add a test. |
+| F3 | blocking | correctness | — | `sessionDirs` ignores the `os.ReadDir` error, so an unreadable `session-state/` reads as empty and `list` exits 0 with a partial view. Python raises. CS-002's "deleted set equals all known sessions" clear would act on that partial view. | Traced: `internal/session/session.go` `sessionDirs`, `entries, _ := os.ReadDir(state)`. A `000` dir yields no sessions and no error. | Return the error from `Load`. Treat only `fs.ErrNotExist` as empty. Add a test (skip when running as root). |
+| F4 | non-blocking | test-gap | fixed inline | `TestIsEmpty` "long line" put the pattern inside the first 64 KiB + overlap read, so the overlap path was never exercised: a `keep = 0` mutation still passed. | Delegated reviewer's mutation run, confirmed by arithmetic: the pattern ended at byte 65552 of a 65556-byte buffer. | Fixed in `dc8b1c0`: the pattern now starts 5 bytes before the buffer end, and the `keep = 0` mutation fails the test. |
+| F5 | non-blocking | correctness | noted | Session names (and IDs) reach the terminal unsanitised, so control sequences in a Copilot-written summary can retitle or clear the terminal. | Delegated reviewer: a name containing `\033]0;pwned\007` comes out raw (`od -c`). The Python script does the same. | Revisit if CS-002 pipes IDs. Stripping control runes departs from the script and needs a user decision. |
+| F6 | non-blocking | correctness | noted | `ParseTime` accepts only the four layouts of CS-001 decision 9. ISO forms such as a `+0100` offset or a time without seconds fall back to `created_at`/mtime, where Python's `fromisoformat` parses them. | Code-review tool: `updated_at: 2026-11-01T10:00:00+0100` → shown with the dir mtime. Copilot writes `toISOString()` (`…Z`), so real data does not hit this. CS-001 decision 9. | Add layouts if a real file ever carries such a timestamp. |
+| F7 | non-blocking | correctness | noted | `busy` uses Python truthiness (CS-001 decision 8), while spec §4.2 says `working == true`. | Code-review tool: `"working": "false"` reads as busy. Copilot writes booleans, so real data is unaffected, and the script behaves the same. | Reconcile spec and decision if a non-boolean ever appears. |
+| F8 | non-blocking | design | noted | `Load` computes sizes for every session before filtering, though only the selected ones are printed. | Code-review tool: `list <id>` walks every session tree. Same as the script; spec §4.4 is met per command. | Size after filtering if `list <id>` gets slow on large homes. |
+| F9 | non-blocking | design | noted | `session.isDigits` duplicates `filter.allDigits`. | `internal/session/session.go`, `internal/filter/filter.go`. | Merge if a third caller appears. |
+| F10 | non-blocking | design | noted | With `--empty`, `HasTurns` opens the DB a second time after `Load`. | Code-review tool: two opens per `list --empty`. | Share one connection if the busy timeout ever bites. |
+
+Disposition summary: 3 blocking (F1, F2, F3) → rework; 1 fixed inline (F4); 6 noted (F5–F10); 0 folded; 0 new tickets.
+cost: estimated L, actual L
+
+Checklist:
+
+- [x] Reviewer independence (step 0): the audits were delegated to a fresh independent reviewer (`hunt: angle 7 only`), because the orchestrator wrote the branch. Discarded delegated or tool findings: the code-review tool's "`printTable` `showSize` always true; `Filters.Any`/`Describe` unused". Reason: CS-001 Tasks 2 and 4 require that surface for CS-002.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` flagged the stale ticket copy, the branch was rebased onto `main`, and the re-run was clean. The remaining `AGENTS.md` marker warning predates this branch and is out of scope.
+- [x] Implementation audit (steps 1 and 2): the acceptance test was re-run verbatim by the delegated reviewer, green on macOS and Docker `golang:1.26` (ongoing, ancestor and Parity tests ran). Tasks 1–6 and the README are present. Decisions hold except 7 (F1).
+- [x] Correctness hunt (step 3): host tool path. The top-level session ran `/code-review high` on `main...feat/CS-001-…` and got 9 findings, of which 1 was discarded on re-verification. Angle 7 ran separately in the delegated reviewer. F1 was reproduced by both. F2 was reproduced by the tool and traced. F3 was traced.
+- [x] Consistency audit (step 4): no contradictions found between the README, the ticket and the spec.
+- [x] Documentation audit (step 4a): the README covers what the ticket requires and its links resolve. There is no docs tree or docs build.
+- [x] Docs-readability pass (step 4b): conscious skip. The only changed prose is the short README, and no dedicated reviewer is configured.
+- [x] Findings recorded with severity, class and disposition. Summary and cost lines are present.
+- [x] Ticket moved to `5-rework/`, with a History line (step 6).
+- [ ] Other references and governing docs (step 7): deferred to the concluding review.
+- [ ] Impact sweep (step 8): deferred to the concluding review.
+- [ ] Summary and approval (step 9): deferred to the concluding review.
 
 ## History
 
@@ -375,3 +409,4 @@ COPILOT_HOME=$(mktemp -d) ./copilot-sessions list   # "No sessions match."
 - 2026-11-06 — plan amended inline: applicability gate F1/F2 — fixture timestamps all zoned and distinct `updated` values; zone-less crash and tie-break order added to decision 2's known conflicts. F3 (pin `go 1.26.0` in go.mod) noted and closed.
 - 2026-11-06 — READY → IN DEVELOPMENT: picked up
 - 2026-11-06 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-06 — IN REVIEW → REWORK: review round 1: 3 blocking (F1 DSN path escaping, F2 symlinked dir size, F3 unreadable session-state)
