@@ -13,18 +13,18 @@ Last updated: 2026-11-06
 
 ## IN DEVELOPMENT
 
+### copilot-sessions (0/1)
+
+| id | title | depends-on |
+|---|---|---|
+
+## IN REVIEW
+
 ### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
 | CS-001 | Go scaffold, session model and list command | [] |
-
-## IN REVIEW
-
-### copilot-sessions (0/1)
-
-| id | title | depends-on |
-|---|---|---|
 
 ## REWORK
 
