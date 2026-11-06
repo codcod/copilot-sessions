@@ -26,8 +26,8 @@ spec is unclear.
 In scope:
 
 - **Scaffold (spec §2).** Go ≥ 1.22, one module, one binary `copilot-sessions`, cobra, and
-  `modernc.org/sqlite` (no CGO). A `Makefile` or `justfile` with `build`, `test` and
-  `install` targets.
+  `modernc.org/sqlite` (no CGO). A `main.Version` variable feeds cobra's `--version`. The
+  `justfile` (build, test, install) is CS-006's job.
 - **Root command and help (§6 global, §7).** The root description. The help also shows the
   DATE formats, the current `COPILOT_HOME`/`COPILOT_BACKUP_DIR` values with their names, and
   the three status definitions. Errors print as `error: <msg>` and exit 1. Usage errors exit
