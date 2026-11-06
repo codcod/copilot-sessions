@@ -201,8 +201,8 @@ func TestIsEmpty(t *testing.T) {
 		{"no events", Session{ID: "a", Dir: write("none", "")}, true},
 		{"start/shutdown", Session{ID: "b", Dir: write("ss", `{"type":"session.start"}`+"\n"+`{"type":"session.shutdown"}`+"\n")}, true},
 		{"user message", Session{ID: "c", Dir: write("msg", `{"type":"session.start"}`+"\n"+`{"type":"user.message"}`+"\n")}, false},
-		// The pattern straddles the 64 KiB chunk boundary on a line longer than 64 KiB.
-		{"long line", Session{ID: "d", Dir: write("long", long[:64<<10-5]+`"type":"user.message"`+long)}, false},
+		// The pattern straddles the end of the first read (64 KiB + overlap) on a line longer than 64 KiB.
+		{"long line", Session{ID: "d", Dir: write("long", long[:64<<10+len(`"type":"user.message"`)-1-5]+`"type":"user.message"`+long)}, false},
 		{"long line without", Session{ID: "e", Dir: write("longno", long+"\n"+long)}, true},
 		{"turns", Session{ID: "t", Dir: write("turns", "")}, false},
 		{"db only", Session{ID: "f"}, true},
