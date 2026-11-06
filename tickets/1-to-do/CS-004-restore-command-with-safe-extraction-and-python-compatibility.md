@@ -37,8 +37,9 @@ Implements `development/spec.md` §6.4 and covers §9 cases 11–12.
   `Restored <N> session(s) from <path>`.
 - **Tests.** A round trip (backup → `clean --all` → restore) gives the same IDs and DB row
   counts. Also test `-wal`/`-shm` removal, `latest`, and rejection of path-traversal
-  archives. An optional compatibility test (§9 case 12) runs only if `python3` and the
-  Python script exist. It checks that Go restores a Python-made archive and that Python
+  archives. An optional compatibility test (§9 case 12) runs only if `python3` (3.12+, for
+  `tarfile` `filter="data"`) is on PATH. It uses the in-repo reference script
+  `development/copilot-sessions.sh`. It checks that Go restores a Python-made archive and that Python
   restores a Go-made one.
 
 Soft couplings: builds on CS-001. Uses the backup listing and archive layout from CS-003,

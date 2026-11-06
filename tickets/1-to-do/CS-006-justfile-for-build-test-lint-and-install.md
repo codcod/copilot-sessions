@@ -46,13 +46,18 @@ Add these, which this project needs:
 - **completion** (group `lifecycle`): runs
   `{{bin}} completion zsh > ~/.zsh/completions/_copilot-sessions` (spec §8).
 - **show-version** (group `release`): kept from the template; prints `./{{bin}} --version`.
-- **test-linux** (group `qa`): runs `go test ./...` in a `golang:1.22` container so the
-  tests that need `/proc` run from macOS (see the `AGENTS.md` Platform note). Mount the
-  repo at `/src`. Use the named volumes `go-mod` (for `/go/pkg/mod`) and `go-build` (for
-  `/root/.cache/go-build`) so later runs are fast. If `~/.local/bin/copilot-sessions`
-  exists, also mount it read-only so the optional Python compatibility test (spec §9
-  case 12, CS-004) can run; otherwise that test skips. Docker covers the Linux code paths
-  but not real Copilot data. The real-data check in CS-005 still runs on WSL.
+- **test-linux** (group `qa`): runs `go test ./...` in a container so the tests that need
+  `/proc` run from macOS (see the `AGENTS.md` Platform note).
+  - The image is `golang:<go directive>`, which is `golang:1.26` as of CS-001, because
+    `modernc.org/sqlite` v1.61.1 needs Go 1.26. Keep the image in step with `go.mod`.
+  - Mount the repo at `/src`. Use the named volumes `go-mod` (for `/go/pkg/mod`) and
+    `go-build` (for `/root/.cache/go-build`) so later runs are fast.
+  - The reference script is in the repo at `development/copilot-sessions.sh`, so the
+    repo mount covers it. The Python-backed tests (CS-001's parity test and spec §9
+    case 12) run only if the image has `python3`; otherwise they skip, and they still run
+    natively on macOS.
+  - Docker covers the Linux code paths but not real Copilot data. The real-data check in
+    CS-005 still runs on WSL.
 
 Leave these template recipes out, since this project has no matching need: `test-update`
 (no golden fixtures planned), `dist-check` and `dist-snapshot` (no goreleaser), and
