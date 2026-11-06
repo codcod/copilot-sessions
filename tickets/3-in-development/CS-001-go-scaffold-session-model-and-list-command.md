@@ -373,3 +373,4 @@ COPILOT_HOME=$(mktemp -d) ./copilot-sessions list   # "No sessions match."
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md (Go rewrite of copilot-sessions); foundation ticket
 - 2026-11-06 — TO DO → READY: plan complete
 - 2026-11-06 — plan amended inline: applicability gate F1/F2 — fixture timestamps all zoned and distinct `updated` values; zone-less crash and tie-break order added to decision 2's known conflicts. F3 (pin `go 1.26.0` in go.mod) noted and closed.
+- 2026-11-06 — READY → IN DEVELOPMENT: picked up

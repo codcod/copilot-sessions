@@ -13,10 +13,11 @@ Last updated: 2026-11-06
 
 ## IN DEVELOPMENT
 
-### copilot-sessions (0/1)
+### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
+| CS-001 | Go scaffold, session model and list command | [] |
 
 ## IN REVIEW
 
@@ -38,7 +39,6 @@ Last updated: 2026-11-06
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-001 | Go scaffold, session model and list command | critical | high | L | [] |  |
 
 ## TO DO (impact order, per child)
 
