@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -37,7 +38,11 @@ type Session struct {
 func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error) {
 	var out []Session
 	index := map[string]int{}
-	for _, dir := range sessionDirs(home) {
+	dirs, err := sessionDirs(home)
+	if err != nil {
+		return nil, err
+	}
+	for _, dir := range dirs {
 		meta := readWorkspace(dir)
 		updated := ParseTime(meta["updated_at"])
 		if updated == nil {
@@ -114,9 +119,16 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 }
 
 // sessionDirs lists the non-hidden directories (symlinks followed) in session-state/.
-func sessionDirs(home string) []string {
+// A missing session-state/ has no sessions; an unreadable one is an error.
+func sessionDirs(home string) ([]string, error) {
 	state := filepath.Join(home, StateDir)
-	entries, _ := os.ReadDir(state)
+	if fi, err := os.Stat(state); err != nil || !fi.IsDir() {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(state)
+	if err != nil {
+		return nil, err
+	}
 	var dirs []string
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), ".") {
@@ -127,7 +139,7 @@ func sessionDirs(home string) []string {
 			dirs = append(dirs, p)
 		}
 	}
-	return dirs
+	return dirs, nil
 }
 
 // readWorkspace parses workspace.yaml line by line, without a YAML library (spec §4.1).
@@ -176,7 +188,9 @@ func openDB(home string) (*sql.DB, error) {
 	if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() {
 		return nil, nil
 	}
-	return sql.Open("sqlite", "file:"+p+"?_pragma=busy_timeout(30000)")
+	// Escape the path: a raw '?', '#' or '%' would be read as URI syntax and open another file.
+	dsn := url.URL{Scheme: "file", OmitHost: true, Path: p, RawQuery: "_pragma=busy_timeout(30000)"}
+	return sql.Open("sqlite", dsn.String())
 }
 
 type dbRow struct{ id, summary, cwd, created, updated string }
@@ -358,8 +372,12 @@ func truthy(v any) bool {
 }
 
 // dirSize sums the lstat sizes of regular files under dir; unreadable entries are skipped.
+// A symlinked dir is resolved first, because WalkDir does not follow a symlinked root.
 func dirSize(dir string) int64 {
 	var total int64
+	if real, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = real
+	}
 	filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
 		if err == nil && d.Type().IsRegular() {
 			if fi, err := d.Info(); err == nil {

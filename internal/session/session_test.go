@@ -1,6 +1,7 @@
 package session
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -235,5 +236,56 @@ func TestSort(t *testing.T) {
 	}
 	if got := strings.Join(ids, ""); got != "xywz" {
 		t.Errorf("order = %s", got)
+	}
+}
+
+func TestLoadEdgePaths(t *testing.T) {
+	// URI syntax in the home path must not reach SQLite (review F1).
+	parent := t.TempDir()
+	plain := filepath.Join(parent, "plain")
+	os.MkdirAll(plain, 0o755)
+	db, err := sql.Open("sqlite", filepath.Join(plain, DBFile))
+	if err == nil {
+		_, err = db.Exec("CREATE TABLE sessions (id TEXT, summary TEXT, cwd TEXT, created_at TEXT, updated_at TEXT); INSERT INTO sessions VALUES ('abc', 's', '/', NULL, NULL)")
+		db.Close()
+	}
+	home := filepath.Join(parent, "h#x?y%z")
+	if err == nil {
+		err = os.Rename(plain, home)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	ss, err := Load(home, nil, false)
+	if err != nil || len(ss) != 1 || ss[0].ID != "abc" {
+		t.Errorf("home with URI characters: %v, %v", ss, err)
+	}
+	if entries, _ := os.ReadDir(parent); len(entries) != 1 {
+		t.Errorf("stray files created next to home: %v", entries)
+	}
+
+	// A symlinked session dir is sized through the link (review F2).
+	home = t.TempDir()
+	real := filepath.Join(t.TempDir(), "real")
+	os.MkdirAll(real, 0o755)
+	os.WriteFile(filepath.Join(real, "events.jsonl"), make([]byte, 5000), 0o644)
+	os.MkdirAll(filepath.Join(home, StateDir), 0o755)
+	if err := os.Symlink(real, filepath.Join(home, StateDir, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	ss, err = Load(home, nil, true)
+	if err != nil || len(ss) != 1 || *ss[0].Size != 5000 {
+		t.Errorf("symlinked dir: %+v, %v", ss, err)
+	}
+
+	// An unreadable session-state/ is an error, not an empty home (review F3).
+	// Root ignores permissions, so this part runs only as a normal user.
+	if os.Getuid() != 0 {
+		state := filepath.Join(home, StateDir)
+		os.Chmod(state, 0)
+		t.Cleanup(func() { os.Chmod(state, 0o755) })
+		if _, err := Load(home, nil, false); err == nil {
+			t.Error("unreadable session-state: no error")
+		}
 	}
 }
