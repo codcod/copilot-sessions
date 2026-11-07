@@ -265,6 +265,10 @@ Disposition summary: 1 blocking (R3-F1 → rework); 1 fixed inline (R3-F2); 1 no
 Reviewer independence: delegated (fresh sub-agent, scoped to d939307); R2-F1 verified closed (`_files -g *.tar.gz` path, plus the author's real-zsh check); R3-F1 re-verified by hand against the generated zsh script; the reviewer discarded its own garbled zpty run.
 Rework cap: this invocation has used its two rework rounds — session stops with the ticket in `5-rework/`; the next "rework ticket CS-005" starts a fresh count.
 
+### Rework fix record — round 3 (commit 64a23e7)
+
+- **R3-F1** — `completeIDs` and the slash-free branch of `completeRestore` now return `ShellCompDirectiveNoFileComp | ShellCompDirectiveKeepOrder`, so cobra's zsh script passes `-V` to `_describe` (and bash skips its sort) and the shell keeps `session.Sort` order for IDs and `latest`, newest-first backups, then local files for `restore` (`internal/cli/complete.go`). `TestCompleteIDs` and `TestCompleteRestore` assert the combined directive; both fail on the pre-fix code. `__complete list ""` and `__complete restore ""` now end in `:36`. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §8, §13 (Go rewrite of copilot-sessions)
@@ -280,3 +284,4 @@ Rework cap: this invocation has used its two rework rounds — session stops wit
 - 2026-11-07 — plan amended inline: decision 5 — restore argument with a `/` falls back to shell file completion (`tar.gz` + `FilterFileExt`) instead of the in-process glob, because cobra expands `~` before `__complete` (R2-F1); user signed off on this route over narrowing F1 to `./`
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
 - 2026-11-07 — IN REVIEW → REWORK: re-review round 3: 1 blocking (R3-F1); 1 fixed inline, 1 noted; rework cap reached
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed
