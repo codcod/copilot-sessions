@@ -249,6 +249,10 @@ cost: estimated S, actual S
 Disposition summary: 1 blocking (R2-F1 → rework round 2); 2 noted (R2-F2, R2-F3).
 Reviewer independence: delegated (fresh sub-agent, scoped to the fix diff); R2-F1 re-verified by hand against the generated zsh script; no delegated finding discarded.
 
+### Rework fix record — round 2 (commit SHA_PENDING)
+
+- **R2-F1** — per amended decision 5 (user sign-off), `completeRestore` returns `tar.gz` + `ShellCompDirectiveFilterFileExt` as soon as the argument contains `/`, so the shell completes `~/`, `./` and subdirectories itself; slash-free input still gets `latest`, the backups newest first, then `*.tar.gz` in the working dir. The unreachable `ExpandUser(dir)` branch and the `"~/"` test case are gone; `TestCompleteRestore` asserts the `FilterFileExt` directive for `./x`, `/home/u/` and `sub/`. R2-F2 disappears with it (no directory goes into the glob any more). Checked end to end in a real `zsh -f` + compinit via zpty: `~/h` → `~/h.tar.gz`, `./m` → `./my.tar.gz`, `sub/` → `sub/s.tar.gz`. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §8, §13 (Go rewrite of copilot-sessions)
@@ -262,3 +266,4 @@ Reviewer independence: delegated (fresh sub-agent, scoped to the fix diff); R2-F
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
 - 2026-11-07 — IN REVIEW → REWORK: re-review round 2: 1 blocking (R2-F1); 2 noted
 - 2026-11-07 — plan amended inline: decision 5 — restore argument with a `/` falls back to shell file completion (`tar.gz` + `FilterFileExt`) instead of the in-process glob, because cobra expands `~` before `__complete` (R2-F1); user signed off on this route over narrowing F1 to `./`
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed
