@@ -20,11 +20,10 @@ Last updated: 2026-11-07
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-007 | backup robustness: atomic archive, live-file races and error reporting | [] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-07
 
 | id | title | open findings |
 |---|---|---|
+| CS-007 | backup robustness: atomic archive, live-file races and error reporting | review round 1: 1 blocking (F1 os.Link fails without hard-link support; decision 2 amended with user sign-off), 8 noted… |
 
 ## READY (impact order, per child)
 

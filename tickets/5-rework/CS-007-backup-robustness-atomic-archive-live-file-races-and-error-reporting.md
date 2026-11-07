@@ -265,7 +265,42 @@ there is no changelog.
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review — round 1 (2026-11-07, branch tip 5ee05f1)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | A default-named backup is published with `os.Link`, so on a backup dir without hard-link support (exFAT/FAT USB, some SMB/FUSE mounts) every default backup fails and the finished archive is deleted. Before CS-007 it worked there. | unreproduced: no such filesystem on hand; traced `backup.go` `Create`: `os.Link` → EPERM/ENOTSUP → not `ErrExist` → returned → deferred cleanup removes the temp file → exit 1. CS-007 decision 2 (its ponytail comment names the ceiling). | On a `Link` error other than `EEXIST`, fall back to claiming the name with `O_EXCL` and renaming the temp file over it. User signed off on amending decision 2. |
+| F2 | non-blocking | correctness | noted | Neither the temp archive nor the dir is fsynced before rename/link, so after a power loss a backup can exist under its final name with missing data. | unreproduced: needs a crash; `Create` calls `f.Close` with no `f.Sync`. The pre-CS-007 code had the same gap. | `f.Sync()` before `Close` if crash-consistency becomes a goal. |
+| F3 | non-blocking | correctness | noted | A file that shrinks mid-backup is zero-padded, so a restore writes trailing NULs into JSON/JSONL; `readOpenState` reads such a file as `{}`. | CS-007 decision 4 (GNU tar behaviour, chosen at refinement); a shrink means a torn rewrite whose content is invalid either way. | Revisit (skip with a warning) if it is ever seen in practice. |
+| F4 | non-blocking | correctness | noted | The aside dir is `<tmp>/old`, inside the extract tree, so an archive with an extra top-level `old` member fails restore with `restore failed, nothing changed: … file exists`. `main` restored it. | Reproduced by the delegated reviewer with the branch binary; fails safe, home unchanged. CS-007 decision 10. Only odd or crafted archives carry such a member. | Make the aside dir a sibling (`os.MkdirTemp(home, "old")`) or extract into `<tmp>/new`. |
+| F5 | non-blocking | correctness | noted | `List` on a path whose parent is a regular file now returns `not a directory` instead of no backups. | Reproduced: `os.Stat("f/backups")` → `not a directory`, `errors.Is(err, fs.ErrNotExist)` false. Only a misconfigured `COPILOT_BACKUP_DIR` hits it, and the error is accurate. | Also treat `syscall.ENOTDIR` as absent if anyone asks. |
+| F6 | non-blocking | design | noted | An explicit `FILE` that is a symlink is now replaced by the archive (rename) rather than written through, and the existing file's owner and ACLs are dropped. Spec §6.3 does not say so. | `Create(…, true)` ends in `os.Rename(tmp, target)`; reported by both the tool and the delegated reviewer. | Add half a line to the §6.3 departures if it matters to anyone. |
+| F7 | non-blocking | design | noted | A SIGKILL or crash mid-backup leaves a hidden `.copilot-sessions-*.tmp` that `--keep` never rotates; a failed backup to a new nested `FILE` leaves its created parent dirs. | Traced: `Create`; the temp file never matches `Pattern`. `MkdirAll` was already there before CS-007. | None for now. |
+| F8 | non-blocking | design | noted | The `closed` flag and `f.Chmod(0o600)` in `Create` are redundant: `os.CreateTemp` already uses 0600, and a double `Close` is harmless. | `backup.go` `Create`; the plan asked to keep the chmod. | Simplify on the next touch. |
+| F9 | non-blocking | stale-xref | noted | The `IN DEVELOPMENT → IN REVIEW` History line cites `4022b52, 9b95afd`, the SHAs from before the review-time rebase onto `main`. | `git diff 9b95afd 5ee05f1` shows only ticket/board files; the code commits are now `2db5ae3`, `5ee05f1`. | History is append-only; the round-1 History line below cites the current SHAs. |
+
+Disposition summary: 1 blocking (F1 → rework); 8 noted (F2–F9); 0 fixed inline, 0 folded, 0 new tickets.
+cost: estimated S, actual S
+
+Discarded on re-verification:
+- Tool finding "rollback can overwrite data / report success wrongly": the scenarios need a running Copilot recreating items mid-restore, which spec §6.4 already tells the user to prevent. "Nothing changed" is reported only when every reverse rename succeeded. In the DB case, the reverse rename puts the *old* DB back, which is the rollback's intent.
+- Tool finding "the package-level `rename` seam races under `t.Parallel`": CS-007 decision 10 mandates the seam, and no test in `internal/cli` calls `t.Parallel`.
+
+Checklist:
+
+- [x] Reviewer independence settled (step 0): **delegated**. The orchestrator wrote the branch in this session. Steps 1–4a and angle 7 were run by a fresh general-purpose sub-agent. Its findings F1/F2/F3 became F4/F9/F6 here, and none were discarded. That reviewer reported running a stray `git checkout main` mid-audit and switching straight back; the tree was clean before and after, and HEAD was 5ee05f1 again.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` warned that the branch was stale after the in-review move. Rebased onto `main`; `pickle doctor` then gave 0 errors and 0 warnings.
+- [x] Implementation audit (steps 1, 2): all of Tasks 1–6 and decisions 1–10 are met. The acceptance test was re-run verbatim by the delegated reviewer: gofmt 0, vet clean, `go test` green, the targeted tests all PASS with none skipped, TestParity executed, `just test-linux` green, and the CLI same-second check gives `backup already exists`.
+- [x] Correctness hunt (step 3): **host tool path**. The orchestrator ran `/code-review medium main...feat/CS-007-backup-robustness`. It reported 9 findings: 7 kept (F1, F2, F3, F5, F6, F7, F8) and 2 discarded (above). Angle 7 ran separately, by the delegated reviewer, and found no security issue. Correctness rows are reproduced or traced.
+- [x] Consistency audit (step 4): delegated reviewer; spec and README are consistent, except F6 and F9.
+- [x] Documentation audit (step 4a): spec §6.3/§6.4 cover the user-facing changes; the README is unchanged by plan; there is no docs build command (n/a).
+- [x] Docs-readability pass (step 4b): conscious skip. The prose change is a short spec list, and the round goes to rework anyway.
+- [x] Findings recorded (step 5).
+- [x] Ticket moved to `tickets/5-rework/` (step 6a).
+- [ ] Other references / governing documents (step 7): deferred to the concluding round.
+- [ ] Impact sweep (step 8): deferred to the concluding round.
+- [ ] Summary + approval (step 9): deferred to the concluding round.
+
 
 ## History
 
@@ -275,3 +310,4 @@ there is no changelog.
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up; applicability gate: 1 blocking test-design finding amended inline, 3 non-blocking (1 inline, 2 noted)
 - 2026-11-07 — plan amended inline: applicability gate — TestRestoreRollback seam keyed on the extracted source, not the destination (the rollback rename shares it), plus a rollback-also-fails case; TestListErrors restores the dir mode in t.Cleanup. Noted and closed: a leftover hidden .tmp when Remove fails after Link (never matches Pattern); WalkDir's second dir-read-error callback is covered by decision 3.
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green (macOS incl. TestParity, Linux Docker); commits 4022b52, 9b95afd on feat/CS-007-backup-robustness
+- 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1 os.Link fails without hard-link support; decision 2 amended with user sign-off), 8 noted (F2–F9); code at 2db5ae3, 5ee05f1
