@@ -134,3 +134,22 @@ func TestBackupValidation(t *testing.T) {
 		t.Error("validation created a backup")
 	}
 }
+
+// Two default-named backups in the same second: the second fails, the first survives.
+func TestBackupSameSecond(t *testing.T) {
+	fx := testfix.Build(t)
+	mustRun(t, fx, "backup")
+	target := filepath.Join(fx.BackupDir, "copilot-sessions-20261106-140000.tar.gz")
+	if _, errOut, code := run(fx, nil, "backup"); code != 1 || errOut != "error: backup already exists: "+target+"\n" {
+		t.Fatalf("exit %d: %q", code, errOut)
+	}
+	if out := mustRun(t, fx, "backup", "--list"); strings.Count(out, "copilot-sessions-") != 1 {
+		t.Errorf("list:\n%s", out)
+	}
+	if l := listing(fx.BackupDir); l != filepath.Base(target) {
+		t.Errorf("backup dir: %s", l)
+	}
+	if out := mustRun(t, fx, "restore", target, "-y"); !strings.Contains(out, "Restored ") {
+		t.Errorf("restore:\n%s", out)
+	}
+}

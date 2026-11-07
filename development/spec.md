@@ -362,6 +362,24 @@ backups after the first N.
 use the file mtime. With no backups, print `No backups in <dir>`.
 JSON: `[{"file": "<path>", "created": "<ISO local, no zone>", "size": <bytes>}]`.
 
+**Deliberate departures from the script.**
+
+- The archive is written to a hidden temp file (`.copilot-sessions-*.tmp`) in the
+  target's directory and moved into place only when complete. A failed backup
+  leaves nothing that `--list`, `--keep` or `restore latest` could pick.
+- A default-named backup never overwrites an existing file; a second backup in
+  the same second fails with `backup already exists: <path>`. An explicit
+  `FILE` is still overwritten.
+- Entries that vanish while the backup runs are skipped. A file that shrinks
+  after it was stat-ed is padded with zeros to its stat-ed size, as GNU tar does.
+  Any other read error (for example a permission error on a top-level item)
+  fails the backup.
+- Only `.session-operation-locks` itself is excluded; siblings such as
+  `.session-operation-locks-old/` are archived.
+- If the session count cannot be read after the archive is written, the backup
+  is still reported (`Backup created: <path> (<size>)`) after a `warning:` on
+  stderr, and `--keep` still runs.
+
 ### 6.4 `restore`
 
 ```
