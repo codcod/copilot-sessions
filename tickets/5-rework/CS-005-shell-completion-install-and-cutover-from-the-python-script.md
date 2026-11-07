@@ -235,6 +235,17 @@ cost: estimated S, actual S
 
 - **F1** — `completeRestore` splits `toComplete` into dir + base, globs `base*.tar.gz` in `filter.ExpandUser(dir)`, and returns `dir + name`, so `./`, `~/` and `sub/` prefixes come back as typed (`internal/cli/complete.go`). `TestCompleteRestore` gains `./x` → `./x.tar.gz`, `~/` → `~/h.tar.gz` (HOME pointed at a temp dir) and `sub/` → `sub/s.tar.gz`; the first two fail on the pre-fix code. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
 
+### Review — round 2, scoped re-review of 1d874a1 (2026-11-07)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| R2-F1 | blocking | correctness | — | the `~/` half of F1 is not closed: cobra's zsh (and bash) script `eval`s `__complete` with the words unquoted, so `~` is expanded before the binary sees it; `completeRestore` returns `$HOME/h.tar.gz`, which `_describe` drops against the literal `~/h`. The `ExpandUser(dir)` branch is unreachable from a shell, and the `"~/"` test case feeds input no shell sends | reproduced in a real `zsh -f` + compinit via zpty: debug log `eval copilot-sessions __complete restore ~/h` → `<abs>/home/h.tar.gz` → `_describe did not find completions`; generated script line `requestComp="${words[1]} __complete ${words[2,-1]}"`. `./m` and `sub/` do work. `internal/cli/complete.go:101-110`, `internal/cli/complete_test.go:89-99` | for a `toComplete` containing `/`, return `tar.gz` + `FilterFileExt` (shell-native file completion handles `~/`, `./`, dirs; also covers F2 for slash paths) — changes decision 5, needs sign-off; or narrow F1 to `./`, record `~/` as a cobra limitation, and drop the dead branch and test |
+| R2-F2 | non-blocking | design | noted | the typed directory goes into `filepath.Glob` unescaped, so `[`, `*`, `?` in a directory name mismatch; `ErrBadPattern` is ignored | `internal/cli/complete.go:104` | disappears with the `FilterFileExt` route |
+| R2-F3 | non-blocking | test-gap | noted | new test setup ignores `os.WriteFile`/`os.Mkdir` errors | `internal/cli/complete_test.go:91-94` | `t.Fatal` on setup errors |
+
+Disposition summary: 1 blocking (R2-F1 → rework round 2); 2 noted (R2-F2, R2-F3).
+Reviewer independence: delegated (fresh sub-agent, scoped to the fix diff); R2-F1 re-verified by hand against the generated zsh script; no delegated finding discarded.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §8, §13 (Go rewrite of copilot-sessions)
@@ -246,3 +257,4 @@ cost: estimated S, actual S
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1); 4 noted (F2–F5)
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
+- 2026-11-07 — IN REVIEW → REWORK: re-review round 2: 1 blocking (R2-F1); 2 noted
