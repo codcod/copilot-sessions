@@ -8,19 +8,22 @@ or `closed`. It is a Go rewrite of a Python script, specified in
 
 ## Development
 
+Recipes live in the `justfile`; a bare `just` lists them. `just build`, `just lint` and
+`just install` build the binary (no CGO), run `gofmt` + `go vet`, and install it to
+`~/.local/bin`.
+
 Run the tests on the development machine:
 
 ```
-go test ./...
+just test
 ```
 
 The binary targets Linux (WSL) and reads `/proc` for process detection, so tests that need
-`/proc` skip on macOS. Run the full suite on Linux in Docker:
+`/proc` skip on macOS. Run the full suite on Linux in Docker (the `golang` image tag follows
+`go.mod`):
 
 ```
-docker run --rm -v "$PWD":/src -w /src \
-  -v go-mod:/go/pkg/mod -v go-build:/root/.cache/go-build \
-  golang:1.26 go test -count=1 ./...
+just test-linux
 ```
 
 `TestParity` compares `list` against the Python reference script in
