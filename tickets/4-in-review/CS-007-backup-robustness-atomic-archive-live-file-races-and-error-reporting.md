@@ -327,4 +327,5 @@ Checklist:
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green (macOS incl. TestParity, Linux Docker); commits 4022b52, 9b95afd on feat/CS-007-backup-robustness
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1 os.Link fails without hard-link support; decision 2 amended with user sign-off), 8 noted (F2–F9); code at 2db5ae3, 5ee05f1
 - 2026-11-07 — plan amended inline: decision 2 gains the O_EXCL+rename fallback when os.Link fails without hard-link support (review round 1 F1, user sign-off).
-- 2026-11-07 — REWORK → IN REVIEW: findings fixed: F1 (dcd9dda, c282e79 after rebase)
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed: F1 (dcd9dda)
+- 2026-11-07 — note: the branch was rebased onto main after the rework move; the F1 fix commit dcd9dda is now c282e79 (fix record updated).
