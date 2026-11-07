@@ -304,7 +304,7 @@ Checklist:
 - [ ] Summary + approval (step 9): deferred to the concluding round.
 
 
-### Rework fix record — round 1 (commit c282e79)
+### Rework fix record — round 1 (commit 9150495 — `fix(backup): fall back to O_EXCL+rename without hard links (CS-007)`; SHAs move on each bookkeeping rebase)
 
 - F1 — fixed. `Create` publishes through a new `moveNew(tmp, target)`. It tries `link` (a
   package-level `var link = os.Link` seam). If that succeeds it removes tmp. `EEXIST` is passed
@@ -313,7 +313,7 @@ Checklist:
   comment is gone now that the fallback exists. New test `TestCreateNoHardLinks` makes `link`
   fail with EPERM: the first no-clobber `Create` succeeds with a readable archive, the second
   gives `backup already exists`, and the dir holds exactly one file. The branch was rebased onto
-  `main` before the fix, so the pre-fix tip is `27d7ebb` after the review-time rebase (round 1 reviewed the same code as
+  `main` before the fix, so the pre-fix tip is `4937e76` after the review-time rebase (round 1 reviewed the same code as
   `5ee05f1`). Acceptance re-run: gofmt 0, vet clean, `go test` green on macOS (TestParity ran),
   `just test-linux` green.
 
