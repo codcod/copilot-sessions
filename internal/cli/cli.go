@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,8 @@ type Env struct {
 	IsTTY           func() bool
 	Now             func() time.Time
 	AncestorPIDs    func() map[int]bool
+
+	in *bufio.Reader // the one buffered Stdin reader of a run; set by Execute
 }
 
 // DefaultEnv fills Env from the process environment.
@@ -59,6 +62,7 @@ type usageError struct{ error }
 
 // Execute runs the command line args and returns the exit code.
 func Execute(env Env, args []string, version string) int {
+	env.in = bufio.NewReader(env.Stdin)
 	root := &cobra.Command{
 		Use:   "copilot-sessions",
 		Short: description,
@@ -91,7 +95,7 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 	root.SetOut(env.Stdout)
 	root.SetErr(env.Stderr)
 	root.SetArgs(args)
-	root.AddCommand(newList(env))
+	root.AddCommand(newList(env), newClean(env))
 
 	err := root.Execute()
 	if err == nil {
@@ -178,6 +182,14 @@ func runList(env Env, f filter.Filters, asJSON, quiet bool) error {
 	}
 	fmt.Fprintf(w, "%d of %d sessions (%s), %s.\n", len(selected), len(all), strings.Join(parts, ", "), session.HumanSize(total))
 	return nil
+}
+
+// plural returns "<n> <word>", with an s unless n == 1 (spec §6.5).
+func plural(n int, word string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, word)
+	}
+	return fmt.Sprintf("%d %ss", n, word)
 }
 
 // printTable prints the session table; the SIZE column needs computed sizes.

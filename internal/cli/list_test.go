@@ -18,11 +18,16 @@ func TestMain(m *testing.M) {
 
 // run executes the CLI in-process against fx and returns stdout, stderr and the exit code.
 func run(fx *testfix.Fixture, ancestors map[int]bool, args ...string) (string, string, int) {
+	return runIn(fx, ancestors, "", false, args...)
+}
+
+// runIn is run with the given stdin and TTY state.
+func runIn(fx *testfix.Fixture, ancestors map[int]bool, stdin string, tty bool, args ...string) (string, string, int) {
 	var out, errOut bytes.Buffer
 	env := Env{
 		Home: fx.Home, BackupDir: fx.BackupDir,
-		Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errOut,
-		IsTTY:        func() bool { return false },
+		Stdin: strings.NewReader(stdin), Stdout: &out, Stderr: &errOut,
+		IsTTY:        func() bool { return tty },
 		Now:          func() time.Time { return time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC) },
 		AncestorPIDs: func() map[int]bool { return ancestors },
 	}
