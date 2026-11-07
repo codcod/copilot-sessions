@@ -112,7 +112,9 @@ nothing. Merging is always the human's.
    no-clobber step. `EEXIST` becomes `backup already exists: <target>`. There is no suffix
    scheme, because `…-1.tar.gz` sorts below `….tar.gz` and fails `Created`'s parse. The CLI
    passes `overwrite = len(args) > 0`.
-   `// ponytail: os.Link needs hard-link support in the backup dir; fall back to O_EXCL+rename if a filesystem refuses it`.
+   *(Amended in review round 1, F1, with user sign-off:)* if `os.Link` fails with anything other
+   than `EEXIST` (no hard-link support), claim the name with `O_EXCL` and rename the temp file
+   over it. The empty placeholder is visible to `--list` for one rename.
 3. **Entries that vanish mid-walk are skipped silently.** In `addTree`, an `fs.ErrNotExist`
    from the walk error, `d.Info()`, `os.Readlink` or `os.Open` returns `nil`. Each regular
    file is opened *before* its header is written, so a file that vanished never leaves a header
@@ -302,6 +304,19 @@ Checklist:
 - [ ] Summary + approval (step 9): deferred to the concluding round.
 
 
+### Rework fix record — round 1 (commit dcd9dda)
+
+- F1 — fixed. `Create` publishes through a new `moveNew(tmp, target)`. It tries `link` (a
+  package-level `var link = os.Link` seam). If that succeeds it removes tmp. `EEXIST` is passed
+  up as `backup already exists`. Any other error falls back to `O_EXCL` create of the target
+  plus `os.Rename(tmp, target)`, and removes the placeholder if the rename fails. The ponytail
+  comment is gone now that the fallback exists. New test `TestCreateNoHardLinks` makes `link`
+  fail with EPERM: the first no-clobber `Create` succeeds with a readable archive, the second
+  gives `backup already exists`, and the dir holds exactly one file. The branch was rebased onto
+  `main` before the fix, so the pre-fix tip is `18ee48a` (round 1 reviewed the same code as
+  `5ee05f1`). Acceptance re-run: gofmt 0, vet clean, `go test` green on macOS (TestParity ran),
+  `just test-linux` green.
+
 ## History
 
 - 2026-11-07 — created (TO DO). source: review: CS-003 review findings F2–F9 and F14, batched as one backup-robustness theme at the user's request
@@ -311,3 +326,5 @@ Checklist:
 - 2026-11-07 — plan amended inline: applicability gate — TestRestoreRollback seam keyed on the extracted source, not the destination (the rollback rename shares it), plus a rollback-also-fails case; TestListErrors restores the dir mode in t.Cleanup. Noted and closed: a leftover hidden .tmp when Remove fails after Link (never matches Pattern); WalkDir's second dir-read-error callback is covered by decision 3.
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green (macOS incl. TestParity, Linux Docker); commits 4022b52, 9b95afd on feat/CS-007-backup-robustness
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1 os.Link fails without hard-link support; decision 2 amended with user sign-off), 8 noted (F2–F9); code at 2db5ae3, 5ee05f1
+- 2026-11-07 — plan amended inline: decision 2 gains the O_EXCL+rename fallback when os.Link fails without hard-link support (review round 1 F1, user sign-off).
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed: F1 (dcd9dda)
