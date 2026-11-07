@@ -80,6 +80,17 @@ func TestParity(t *testing.T) {
 			t.Errorf("%v:\ngo:     %v\npython: %v", args, got, want)
 		}
 	}
+
+	// backup --list (spec §13), and Python can read a Go-made archive.
+	seedBackups(t, fx.BackupDir, true)
+	if got, want := goRun("backup", "--list"), py("backup", "--list"); got != want {
+		t.Errorf("backup --list:\ngo:\n%s\npython:\n%s", got, want)
+	}
+	archive := filepath.Join(t.TempDir(), "go.tar.gz")
+	goRun("backup", "-q", archive)
+	if out, err := exec.Command(python, "-I", "-c", "import tarfile,sys; print(len(tarfile.open(sys.argv[1]).getnames()))", archive).CombinedOutput(); err != nil || strings.TrimSpace(string(out)) == "0" {
+		t.Errorf("python read archive: %v %s", err, out)
+	}
 }
 
 // withoutSize drops the SIZE column and the summary's total size.

@@ -217,7 +217,7 @@ func Apply(all []session.Session, f Filters, hasTurns func() (map[string]bool, e
 	var root string
 	if f.Cwd != "" {
 		var err error
-		if root, err = filepath.Abs(expandUser(f.Cwd)); err != nil {
+		if root, err = filepath.Abs(ExpandUser(f.Cwd)); err != nil {
 			return nil, err
 		}
 	}
@@ -271,7 +271,8 @@ func resolveIDs(all []session.Session, prefixes []string) (map[string]bool, erro
 	return ids, nil
 }
 
-func expandUser(p string) string {
+// ExpandUser expands a leading ~ to the home directory.
+func ExpandUser(p string) string {
 	if p == "~" || strings.HasPrefix(p, "~/") {
 		if home, err := os.UserHomeDir(); err == nil {
 			return home + p[1:]
