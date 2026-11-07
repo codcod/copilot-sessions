@@ -356,3 +356,4 @@ Checklist (round 2):
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed: F1 (dcd9dda)
 - 2026-11-07 — note: the branch was rebased onto main after the rework move; the F1 fix commit dcd9dda is now c282e79 (fix record updated).
 - 2026-11-07 — IN REVIEW → DONE: review round 2: F1 verified fixed; noted F2–F8, F10, F11 (F9 noted round 1); tidied commits b081553, 2d3a929 on feat/CS-007-backup-robustness; publish pending approval
+- 2026-11-07 — published: user approved; main pushed, remote-base check clean, branch pushed (b081553, 2d3a929), PR #6 https://github.com/codcod/copilot-sessions/pull/6 opened against main; merge is the human's.
