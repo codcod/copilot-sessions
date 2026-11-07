@@ -278,3 +278,4 @@ Checklist:
 - 2026-11-07 — plan amended inline: acceptance keeps GOCACHE/GOMODCACHE pointed at the real caches under the throwaway HOME (else a cold, networked rebuild leaves read-only module files); vim modeline fixed to `set ft=make et ai:` (applicability gate, non-blocking)
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-07 — IN REVIEW → DONE: review round 1: no blocking findings; 3 noted
+- 2026-11-07 — published: pushed feat/CS-006-justfile (8d52ed3) and opened PR #2 (https://github.com/codcod/copilot-sessions/pull/2); awaiting human merge
