@@ -15,8 +15,8 @@ earns a **disposition** (rules §5), and most are resolved without a new ticket.
   directly; `pickle install --agent claude` adds a `.claude/skills/brine` view for
   Claude Code. The directory is pickle-owned — `pickle install` and `pickle upgrade`
   both replace it wholesale, so keep hand-written notes outside it.
-- Triggers: "make it a ticket", "refine ticket CS-NNN", "implement ticket CS-NNN", "rework ticket
-  CS-NNN", "validate ticket CS-NNN" (or "review ticket CS-NNN"), "audit the board".
+- Triggers: "make it a ticket", "refine ticket T-NNN", "implement ticket T-NNN", "rework ticket
+  T-NNN", "validate ticket T-NNN" (or "review ticket T-NNN"), "audit the board".
 
 ### Project configuration
 
@@ -24,7 +24,7 @@ earns a **disposition** (rules §5), and most are resolved without a new ticket.
   frontmatter (`pickle project list`). Registered child-projects: `copilot-sessions`.
 - **Branch & commit.** Conventional Commits with the **ticket id in brackets at the end of
   the subject** (e.g. `feat(cli): add board audit (T-2)`) for child-project code. Ticket/board
-  bookkeeping uses its own `board: CS-NNN <verb phrase>` form instead — grammar and scope in
+  bookkeeping uses its own `board: T-NNN <verb phrase>` form instead — grammar and scope in
   the rules §0. Branch per child:
   - `copilot-sessions`: `feat/CS-NNN-<slug>`
 - **WIP limits** (per child):
