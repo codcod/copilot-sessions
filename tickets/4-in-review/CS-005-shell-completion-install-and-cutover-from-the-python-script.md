@@ -231,7 +231,7 @@ cost: estimated S, actual S
 - [ ] Impact sweep (step 8) — at conclusion
 - [ ] Summary + commit message & MR for approval (step 9) — at conclusion
 
-### Rework fix record — round 1 (commit 38c8bef)
+### Rework fix record — round 1 (commit 5a5a235)
 
 - **F1** — `completeRestore` splits `toComplete` into dir + base, globs `base*.tar.gz` in `filter.ExpandUser(dir)`, and returns `dir + name`, so `./`, `~/` and `sub/` prefixes come back as typed (`internal/cli/complete.go`). `TestCompleteRestore` gains `./x` → `./x.tar.gz`, `~/` → `~/h.tar.gz` (HOME pointed at a temp dir) and `sub/` → `sub/s.tar.gz`; the first two fail on the pre-fix code. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
 
