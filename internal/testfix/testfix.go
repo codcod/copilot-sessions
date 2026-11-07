@@ -2,6 +2,8 @@
 package testfix
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"database/sql"
 	"encoding/json"
 	"os"
@@ -173,4 +175,33 @@ func writeJSON(t testing.TB, path string, v any) {
 		t.Fatal(err)
 	}
 	write(t, path, string(b)+"\n")
+}
+
+// Archive writes a gzip tar of hdrs to path. Each regular file gets the body "data\n".
+func Archive(t testing.TB, path string, hdrs ...tar.Header) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	gz := gzip.NewWriter(f)
+	tw := tar.NewWriter(gz)
+	for _, h := range hdrs {
+		if h.Typeflag == tar.TypeReg {
+			h.Size = 5
+		}
+		if err := tw.WriteHeader(&h); err != nil {
+			t.Fatal(err)
+		}
+		if h.Typeflag == tar.TypeReg {
+			tw.Write([]byte("data\n"))
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
