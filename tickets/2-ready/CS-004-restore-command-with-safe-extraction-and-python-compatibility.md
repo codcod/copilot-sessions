@@ -74,8 +74,8 @@ nothing. Merging is always the human's.
 
 - CS-002 and CS-003 are both in `6-done/` and merged to `main`; check each one's History for
   the `merged to main` line. If either is not merged, stop and ask the human.
-- On `main`, the following exist: `internal/cli/confirm.go` (`confirm`, `readLine`,
-  `plural`), `internal/backup` (`Items`, `Create`, `List`, `Created`), `printBackups`,
+- On `main`, the following exist: `internal/cli/confirm.go` (`confirm`, `readLine`),
+  `plural` (in `internal/cli/cli.go`), `internal/backup` (`Items`, `Create`, `List`, `Created`), `printBackups`,
   `session.Dirs` and `filter.ExpandUser`.
 - The working tree is clean, and `go test ./...` is green on `main`.
 
@@ -269,3 +269,4 @@ CS-005 writes the usage section. No changelog.
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.4, §9 cases 11-12 (Go rewrite of copilot-sessions)
 - 2026-11-07 — TO DO → READY: plan complete
+- 2026-11-07 — impact sweep from CS-002 review: `plural` lives in `internal/cli/cli.go`, not `confirm.go`; prerequisite line corrected.

@@ -239,7 +239,42 @@ README is unchanged here; CS-005 writes the usage and install section. No change
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review — round 1 (2026-11-07)
+
+Branch `feat/CS-002-clean-command`, reviewed at `afe74b6` (rebased onto `main` after `pickle doctor`
+flagged the stale ticket copy).
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | non-blocking | correctness | noted | Names reach the confirmation table raw, so escape sequences in an untrusted name can hide or rewrite rows the user is about to confirm deleting. The count line still shows the true number. | Delegated reviewer: `name: x\033[1A\033[2K` → `clean --all -n \| od -c` emits it raw. CS-002 decision 3; same ground as CS-001 F5; the script does the same. | Strip control runes for TTY output if CS-001 F5 is ever scheduled; needs user sign-off (decision 3). |
+| F2 | non-blocking | correctness | noted | Selection and status are read once, before the prompt; a session that turns ongoing (or appears) while `[y/N]` waits is deleted, and `--all`'s full clear can drop a newer session's UI state. | Code-review tool, traced: `clean.go` `runClean` → `load` → `confirm` → `session.Delete` with no re-check. `cmd_clean` in the script has the same window. | Re-check the lock just before `RemoveAll` if this ever bites. |
+| F3 | non-blocking | correctness | noted | Deletion is not atomic across its steps: dirs go first, so a later DB error or malformed UI-state JSON (which `list` tolerates) exits 1 after the destructive work, and one bad or directory `*.json` in `sidebar-sessions-state/` stops the other sidebar files being pruned. | Code-review tool, traced: `delete.go` `Delete` order; `readJSONFile` errors on bad JSON or a dir. The script's `json.loads`/`read_text` raise at the same point (decision 1 parity). | Read/validate UI state before removing dirs, or tolerate bad files like `readOpenState`. |
+| F4 | non-blocking | correctness | noted | `os.RemoveAll` failures are ignored, yet DB rows and UI state are pruned and `Deleted N` is printed, so a partly undeletable dir resurfaces as a session without DB metadata. | Code-review tool, traced: `delete.go` `Delete`. Mandated by CS-002 decision 6 (script's `rmtree(ignore_errors=True)`). | Revisit with decision 6 if it happens on real data. |
+| F5 | non-blocking | correctness | noted | A symlinked UI-state file is replaced by a regular file on rewrite (rename replaces the link). | Code-review tool, traced: `writeJSONFile` → `os.Rename`. The script's `tmp.replace(path)` does the same. | Resolve the link with `EvalSymlinks` before writing if anyone keeps these in dotfiles. |
+| F6 | non-blocking | correctness | noted | A symlinked session dir: Go unlinks the link and leaves the target; the script's `rmtree` refuses links and leaves the entry. DB/UI pruning is identical. Go is the safer of the two. | Delegated reviewer, reproduced in scratch: `linked1` gone, `target/precious` survives; Python still lists `linked2`. | None. |
+| F7 | non-blocking | correctness | noted | The existence check reads every `sqlite_master` name, so an index, view or trigger named like a prune table would be treated as a table. | Code-review tool, traced: `pruneDB`. Same as the script's `prune_db`; CS-002 decision 7. Copilot's schema has no such names. | Filter `type = 'table'` if the schema ever grows one. |
+| F8 | non-blocking | design | noted | `clean` computes sizes for every session, not only the selected ones. | Code-review tool: `load(env, f, !quiet)`. Same as the script and as CS-001 F8. | Size after filtering if `clean <id>` gets slow. |
+| F9 | non-blocking | design | noted | `pruneUIState` repeats the filter/"write only if changed" logic for the open-state map and the sidebar arrays. | Code-review tool: `delete.go` `pruneUIState`. | Merge into one helper if a third UI-state file appears. |
+| F10 | non-blocking | test-gap | noted | No test for a sidebar file with missing/non-array `sessionIds`, an empty UI-state file, or EOF at the prompt. | Delegated reviewer: `clean_test.go` covers only the well-formed fixture; no `delete_test.go`. | Add a small table test in `internal/session` if the package is reworked. |
+| F11 | non-blocking | stale-xref | noted | The 2026-11-07 "plan amended inline" History line says `TestParity` likely skips in the Linux container; it runs and passes there (golang:1.26 ships python3). | Delegated reviewer and orchestrator: `--- PASS: TestParity` in Docker. History is append-only. | Corrected by a History line at this review's move. |
+
+Disposition summary: 0 blocking; 11 noted (F1–F11); 0 fixed inline; 0 folded; 0 new tickets.
+cost: estimated M, actual M
+
+Checklist:
+
+- [x] Reviewer independence (step 0): audits delegated to a fresh independent reviewer (`hunt: angle 7 only`), because the orchestrator wrote the branch. Discarded tool findings (2): "UI-state keys are re-sorted / non-ASCII not escaped" — accepted in CS-002 decision 8; "`Env.in` is nil outside `Execute`" — mandated by CS-002 decision 5 and every command is built by `Execute`. No delegated finding discarded.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` flagged the stale ticket copy; branch rebased onto `main`; re-run clean.
+- [x] Implementation audit (steps 1, 2): acceptance re-run verbatim by the delegated reviewer, green on macOS and Docker `golang:1.26`; case 6 and `TestParity` executed on Linux. Tasks 1–4 and decisions 1–9 hold.
+- [x] Correctness hunt (step 3): host tool path — the top-level session ran `/code-review medium` on `main...feat/CS-002-clean-command` (10 findings, 2 discarded on re-verification); angle 7 ran separately in the delegated reviewer (path safety, SQL binding, temp-file mode all hold). F1 and F6 reproduced; the rest traced.
+- [x] Consistency audit (step 4): no caller/callee drift; `confirm`, `readLine`, `plural`, `SidebarDir` ready for CS-003/CS-004.
+- [x] Documentation audit (step 4a): user-facing surface is `clean --help`, flag help matches script lines 700–704; README deferred to CS-005 per plan; no docs build.
+- [x] Docs-readability pass (step 4b): conscious skip — the branch changes no `.md`/`.adoc` files.
+- [x] Findings recorded with severity, class, disposition; summary and cost lines present (step 5).
+- [x] Ticket moved to `6-done/`; History appended (step 6).
+- [x] Other references (step 7): governing docs (`development/spec.md`) match what shipped; no edit needed.
+- [x] Impact sweep (step 8): CS-004's prerequisite said `plural` lives in `confirm.go`; it lives in `cli.go` (CS-002 Task 3). Patched in CS-004 with a History line. CS-003 and CS-005 unaffected.
+- [x] Summary, commit message and MR attributes presented for approval; bookkeeping committed on `main`; next-ticket suggestion (step 9).
 
 ## History
 
@@ -249,3 +284,4 @@ README is unchanged here; CS-005 writes the usage and install section. No change
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
 - 2026-11-07 — plan amended inline: applicability gate (non-blocking, user-approved) — Task 3 script flag lines 698–703 → 700–704; Task 4 widens `withoutSize` to the clean summary; acceptance drops the stale pre-CS-006 fallback. Noted and closed: `TestParity` likely skips in the Linux container (no python3), so the Linux run is not parity evidence.
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-07 — IN REVIEW → DONE: review passed: 0 blocking, 11 noted (F1–F11), 0 new tickets; F11 corrects the earlier History line — TestParity runs and passes in the Linux container
