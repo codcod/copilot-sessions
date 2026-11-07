@@ -47,6 +47,7 @@ Last updated: 2026-11-07
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-007 | backup robustness: atomic archive, live-file races and error reporting | medium | low | S | [] |  |
 
 ## DONE
 
