@@ -32,7 +32,7 @@ func Delete(home string, ss []Session, everything bool) error {
 }
 
 func pruneDB(home string, ids map[string]bool) error {
-	db, err := openDB(home)
+	db, err := OpenDB(home)
 	if db == nil || err != nil || len(ids) == 0 {
 		return err
 	}

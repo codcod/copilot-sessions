@@ -39,7 +39,7 @@ type Session struct {
 func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error) {
 	var out []Session
 	index := map[string]int{}
-	dirs, err := sessionDirs(home)
+	dirs, err := Dirs(home)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +119,9 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 	return out, nil
 }
 
-// sessionDirs lists the non-hidden directories (symlinks followed) in session-state/.
+// Dirs lists the non-hidden directories (symlinks followed) in session-state/.
 // A missing session-state/ has no sessions; an unreadable one is an error.
-func sessionDirs(home string) ([]string, error) {
+func Dirs(home string) ([]string, error) {
 	state := filepath.Join(home, StateDir)
 	if fi, err := os.Stat(state); err != nil || !fi.IsDir() {
 		return nil, nil
@@ -182,9 +182,9 @@ func ParseTime(v string) *time.Time {
 	return nil
 }
 
-// openDB opens session-store.db if it is a regular file; it returns nil, nil otherwise,
+// OpenDB opens session-store.db if it is a regular file; it returns nil, nil otherwise,
 // so the driver never creates one.
-func openDB(home string) (*sql.DB, error) {
+func OpenDB(home string) (*sql.DB, error) {
 	p := filepath.Join(home, DBFile)
 	if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() {
 		return nil, nil
@@ -197,7 +197,7 @@ func openDB(home string) (*sql.DB, error) {
 type dbRow struct{ id, summary, cwd, created, updated string }
 
 func dbSessions(home string) ([]dbRow, error) {
-	db, err := openDB(home)
+	db, err := OpenDB(home)
 	if db == nil || err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func dbSessions(home string) ([]dbRow, error) {
 // HasTurns returns the IDs of sessions with rows in the turns table.
 func HasTurns(home string) (map[string]bool, error) {
 	ids := map[string]bool{}
-	db, err := openDB(home)
+	db, err := OpenDB(home)
 	if db == nil || err != nil {
 		return ids, err
 	}
