@@ -317,6 +317,32 @@ Checklist:
   `5ee05f1`). Acceptance re-run: gofmt 0, vet clean, `go test` green on macOS (TestParity ran),
   `just test-linux` green.
 
+### Review — round 2, scoped re-review (2026-11-07, branch tip 9150495)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | — | correctness | — | Verified fixed. | Re-reviewer reproduced on a real macOS exFAT image (`ln` gives "Operation not supported"): the first default backup succeeds, a same-second second one gives `backup already exists`, `--list` shows 1 backup, and no `.tmp` is left. `TestCreateNoHardLinks` fails without the fallback. | — |
+| F10 | non-blocking | test-gap | noted | `TestCreateNoHardLinks` does not run the fallback's own failure branch (rename fails → placeholder removed) or an `O_EXCL` error other than `EEXIST`. | `backup_test.go`; the 2-line branch in `moveNew` is correct when read. | Add a case if `moveNew` changes again. |
+| F11 | non-blocking | stale-xref | noted | The History note "dcd9dda is now c282e79" cites a SHA that a later bookkeeping rebase orphaned. | `git branch --contains c282e79` prints nothing. | History is append-only; the round-2 History line cites the final SHAs. |
+
+Disposition summary: F1 verified fixed; 2 noted (F10, F11); 0 fixed inline, 0 folded, 0 new tickets.
+cost: estimated S, actual S
+
+Checklist (round 2):
+
+- [x] Reviewer independence (step 0): **delegated**. A fresh sub-agent ran steps 1–4a over the fix diff. No delegated findings were discarded.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` 0/0 at 9150495.
+- [x] Implementation audit (steps 1, 2): the fix diff was read. Amended decision 2 is met. The acceptance test was re-run verbatim: gofmt 0, vet clean, `go test` green, targeted tests PASS with none skipped, TestParity ran, `just test-linux` green, CLI same-second check OK.
+- [x] Correctness hunt (step 3): **one pass**, all eight angles over the fix diff only, by the delegated reviewer. The host tool was not used because it cannot be held to a single-commit range. Correctness was reproduced on exFAT.
+- [x] Consistency audit (step 4): the ponytail comment was removed with the fix, and spec §6.3 is still accurate.
+- [x] Documentation audit (step 4a): no user-facing change in the fix; no docs build command (n/a).
+- [x] Docs-readability pass (step 4b): conscious skip, because the fix diff changes no prose.
+- [x] Findings recorded (step 5).
+- [x] Ticket moved to `tickets/6-done/` (step 6b).
+- [x] Other references / governing documents (step 7): `development/spec.md` §6.3/§6.4 were reconciled on the branch. AGENTS.md names no other governing document affected. CS-003 decision 5 is reversed by design (named in this ticket's Description), and CS-003 is a closed ticket, so it gets no edit.
+- [x] Impact sweep (step 8): `1-to-do/` and `2-ready/` are empty, so nothing depends on CS-007.
+- [x] Summary + approval (step 9): presented to the user. Root-path child: WIP tidied into 2 atomic commits (`b081553` backup, `2d3a929` restore), with the F1 fix folded into the backup commit. Push, MR and the remote-base check are pending approval.
+
 ## History
 
 - 2026-11-07 — created (TO DO). source: review: CS-003 review findings F2–F9 and F14, batched as one backup-robustness theme at the user's request
@@ -329,3 +355,4 @@ Checklist:
 - 2026-11-07 — plan amended inline: decision 2 gains the O_EXCL+rename fallback when os.Link fails without hard-link support (review round 1 F1, user sign-off).
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed: F1 (dcd9dda)
 - 2026-11-07 — note: the branch was rebased onto main after the rework move; the F1 fix commit dcd9dda is now c282e79 (fix record updated).
+- 2026-11-07 — IN REVIEW → DONE: review round 2: F1 verified fixed; noted F2–F8, F10, F11 (F9 noted round 1); tidied commits b081553, 2d3a929 on feat/CS-007-backup-robustness; publish pending approval
