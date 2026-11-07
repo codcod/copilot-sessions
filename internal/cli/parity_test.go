@@ -17,27 +17,10 @@ import (
 // TestParity compares list and clean -n output with the Python reference script on the same fixture.
 // It skips unless python3 is on PATH.
 func TestParity(t *testing.T) {
-	python, err := exec.LookPath("python3")
-	if err != nil {
-		t.Skip("python3 not on PATH")
-	}
-	script, _ := filepath.Abs("../../development/copilot-sessions.sh")
-	if _, err := os.Stat(script); err != nil {
-		t.Skip("reference script missing")
-	}
 	fx := testfix.Build(t)
+	py := pythonRunner(t, fx)
 	ancestors := session.DefaultAncestors()
 
-	py := func(args ...string) string {
-		t.Helper()
-		cmd := exec.Command(python, append([]string{"-I", script}, args...)...)
-		cmd.Env = append(os.Environ(), "TZ=XST-2", "COPILOT_HOME="+fx.Home, "COPILOT_BACKUP_DIR="+fx.BackupDir)
-		out, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("python %v: %v", args, err)
-		}
-		return string(out)
-	}
 	goRun := func(args ...string) string {
 		t.Helper()
 		out, errOut, code := run(fx, ancestors, args...)
@@ -88,8 +71,36 @@ func TestParity(t *testing.T) {
 	}
 	archive := filepath.Join(t.TempDir(), "go.tar.gz")
 	goRun("backup", "-q", archive)
-	if out, err := exec.Command(python, "-I", "-c", "import tarfile,sys; print(len(tarfile.open(sys.argv[1]).getnames()))", archive).CombinedOutput(); err != nil || strings.TrimSpace(string(out)) == "0" {
+	if out, err := exec.Command("python3", "-I", "-c", "import tarfile,sys; print(len(tarfile.open(sys.argv[1]).getnames()))", archive).CombinedOutput(); err != nil || strings.TrimSpace(string(out)) == "0" {
 		t.Errorf("python read archive: %v %s", err, out)
+	}
+}
+
+// pythonRunner returns a runner for the reference script against fx, with -I and the
+// test zone. It skips the test unless python3 3.12+ (tarfile filter="data") and the
+// script are available.
+func pythonRunner(t *testing.T, fx *testfix.Fixture) func(args ...string) string {
+	t.Helper()
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not on PATH")
+	}
+	if exec.Command(python, "-c", "import sys; sys.exit(sys.version_info < (3, 12))").Run() != nil {
+		t.Skip("python3 older than 3.12")
+	}
+	script, _ := filepath.Abs("../../development/copilot-sessions.sh")
+	if _, err := os.Stat(script); err != nil {
+		t.Skip("reference script missing")
+	}
+	return func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command(python, append([]string{"-I", script}, args...)...)
+		cmd.Env = append(os.Environ(), "TZ=XST-2", "COPILOT_HOME="+fx.Home, "COPILOT_BACKUP_DIR="+fx.BackupDir)
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("python %v: %v", args, err)
+		}
+		return string(out)
 	}
 }
 

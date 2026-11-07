@@ -396,7 +396,10 @@ Restore steps:
 2. Extract safely. Reject absolute paths, `..` components, symlinks or hard
    links that point outside the target, and device, FIFO or other special
    files. Remove setuid and setgid bits. This matches Python
-   `tarfile` `filter="data"`.
+   `tarfile` `filter="data"`, with three deliberate departures: a symlink target
+   must point downward (no absolute path, no `..`), none of the four top-level
+   items may be a symlink, and a missing `COPILOT_HOME` is created instead of
+   failing.
 3. For each of the four top-level items: remove the current item. For
    `session-store.db`, also remove `session-store.db-wal` and
    `session-store.db-shm`. Then rename the extracted item into place if it
