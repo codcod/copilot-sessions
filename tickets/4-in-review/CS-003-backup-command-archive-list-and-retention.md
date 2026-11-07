@@ -262,7 +262,7 @@ Checklist:
 
 Disposition summary: 1 blocking (F1, rework). 12 noted (F2–F13). None fixed inline, folded or turned into tickets. F2–F9 are robustness gaps that the Python reference shares. They are candidates for a "backup robustness" follow-up if the user wants to depart from parity.
 
-### Rework fix record — round 1 (commit 51ea020)
+### Rework fix record — round 1 (commit e239695)
 
 - **F1 fixed.** `addTree` now copies `io.CopyN(tw, f, hdr.Size)`, which is the size `tarfile` copies, so a file that grows during the backup is stored at the size it had when stat'ed. The regression test `TestCreateGrowingFile` (`internal/backup/backup_test.go`) appends up to 16 MiB to a 1 MiB `events.jsonl` while `Create` runs. It fails with `archive/tar: write too long` when the fix is reverted and passes with it. gofmt and vet are clean, and `go test -count=1 ./...` and `just test-linux` are green.
 
