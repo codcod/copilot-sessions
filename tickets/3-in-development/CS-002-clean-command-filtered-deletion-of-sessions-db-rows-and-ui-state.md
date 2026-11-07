@@ -144,7 +144,7 @@ left alone.
 
 Create `internal/cli/clean.go` with `newClean(env Env) *cobra.Command`: `Use: "clean [ID...]"`,
 `Aliases: rm`, `Short: "delete sessions"`. Port the flag help strings from the script (lines
-698–703). Register it in `Execute` after `newList`. Its run function:
+700–704). Register it in `Execute` after `newList`. Its run function:
 
 1. Validation (decision 9).
 2. `load(env, f, !quiet)` (the existing helper in `cli.go`) gives `all` and `selected`.
@@ -195,7 +195,8 @@ Cover spec §9 cases 5–9:
   prints `Aborted.` and deletes nothing; with stdin `"Yes\n"` it deletes.
 
 Extend `TestParity` in `internal/cli/parity_test.go`: for each existing filter set, compare
-`clean -n <filters>` through `withoutSize`, using `clean -n --all` for the empty set. This is
+`clean -n <filters>` through `withoutSize` (widen its summary matcher to also cover
+`sessions selected (`), using `clean -n --all` for the empty set. This is
 the spec §13 `clean -n` parity criterion.
 
 ### Acceptance test
@@ -204,7 +205,7 @@ the spec §13 `clean -n` parity criterion.
 gofmt -l . | wc -l                     # 0
 go vet ./...
 go test -count=1 ./...                 # macOS: clean tests and TestParity pass
-just test-linux                        # if CS-006 is merged; else the docker run in README § Development
+just test-linux
 CGO_ENABLED=0 go build ./cmd/copilot-sessions   # -> ./copilot-sessions (gitignored)
 ./copilot-sessions clean; echo $?                 # "error: specify session IDs, a filter (...) or --all", 1
 ./copilot-sessions clean --all --grep x; echo $?  # "error: --all cannot be combined with IDs or filters", 1
@@ -245,3 +246,5 @@ README is unchanged here; CS-005 writes the usage and install section. No change
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.2 (Go rewrite of copilot-sessions)
 - 2026-11-06 — impact sweep from CS-001 review: added pointer to CS-001 findings F5 and F11.
 - 2026-11-07 — TO DO → READY: plan complete
+- 2026-11-07 — READY → IN DEVELOPMENT: picked up
+- 2026-11-07 — plan amended inline: applicability gate (non-blocking, user-approved) — Task 3 script flag lines 698–703 → 700–704; Task 4 widens `withoutSize` to the clean summary; acceptance drops the stale pre-CS-006 fallback. Noted and closed: `TestParity` likely skips in the Linux container (no python3), so the Linux run is not parity evidence.
