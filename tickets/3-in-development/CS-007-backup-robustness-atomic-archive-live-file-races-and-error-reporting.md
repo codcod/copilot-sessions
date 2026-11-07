@@ -188,15 +188,18 @@ script.
   - Extend `TestCreate`: add `session-state/.session-operation-locks-old/x` to the home. It must
     be in the archive, and nothing under `.session-operation-locks/` may be.
   - `TestListErrors`: a missing dir and a regular file both give `nil, nil`. `<p>/b` where `<p>` has
-    mode `0` (Stat gives EACCES) gives an error; skip as root.
+    mode `0` (Stat gives EACCES) gives an error; skip as root; `t.Cleanup` restores `<p>`'s mode so TempDir cleanup works.
 - `internal/cli/backup_test.go`: `TestBackupSameSecond`: run `backup` twice with the fixed
   `env.Now`. The second exits 1 with `backup already exists:`, and `backup --list` still shows
   exactly one readable backup.
 - `internal/cli/restore_test.go`: `TestRestoreRollback`: swap `rename` for one that fails when
-  the destination is `<home>/sidebar-sessions-state` (the last item, after the others were
-  swapped). Restore exits 1 with `restore failed, nothing changed`. Every top-level item in
+  the *source* is `<tmp>/sidebar-sessions-state` (the extracted last item, after the others
+  were swapped; matching on the destination would also fail the rollback rename back into
+  `<home>/sidebar-sessions-state`). Restore exits 1 with `restore failed, nothing changed`. Every top-level item in
   home has the same contents as before the restore (compare a recursive listing + file bytes
   taken beforehand), and no `tmp*` dir is left in home. Restore `rename` with `t.Cleanup`.
+  A second case additionally fails the rollback rename back into `<home>/sidebar-sessions-state`:
+  the error says `rollback incomplete` and names `<tmp>/old`, which still exists.
 
 F4's vanish guards (decision 3) and F5's `Lstat` guard are one-line `errors.Is` checks with no
 deterministic trigger, so the review covers them by reading the code. No race tests.
@@ -269,3 +272,5 @@ there is no changelog.
 - 2026-11-07 — created (TO DO). source: review: CS-003 review findings F2–F9 and F14, batched as one backup-robustness theme at the user's request
 - 2026-11-07 — folded: CS-004 review F4 (restore replace window) added to the Description.
 - 2026-11-07 — TO DO → READY: plan complete; decisions: F8 left as is, F14 zero-pad, F3 error on collision, restore move-aside rollback
+- 2026-11-07 — READY → IN DEVELOPMENT: picked up; applicability gate: 1 blocking test-design finding amended inline, 3 non-blocking (1 inline, 2 noted)
+- 2026-11-07 — plan amended inline: applicability gate — TestRestoreRollback seam keyed on the extracted source, not the destination (the rollback rename shares it), plus a rollback-also-fails case; TestListErrors restores the dir mode in t.Cleanup. Noted and closed: a leftover hidden .tmp when Remove fails after Link (never matches Pattern); WalkDir's second dir-read-error callback is covered by decision 3.
