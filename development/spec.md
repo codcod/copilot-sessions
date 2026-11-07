@@ -418,10 +418,15 @@ Restore steps:
    must point downward (no absolute path, no `..`), none of the four top-level
    items may be a symlink, and a missing `COPILOT_HOME` is created instead of
    failing.
-3. For each of the four top-level items: remove the current item. For
-   `session-store.db`, also remove `session-store.db-wal` and
-   `session-store.db-shm`. Then rename the extracted item into place if it
-   exists in the archive.
+3. For each of the four top-level items: move the current item (for
+   `session-store.db`, also `session-store.db-wal` and `session-store.db-shm`)
+   aside into the temp directory, then rename the extracted item into place if
+   it exists in the archive. Deliberate departure from the script, which deletes
+   first: if any rename fails, every move is undone and the restore fails with
+   `restore failed, nothing changed: <err>`, leaving `COPILOT_HOME` unchanged. If
+   the rollback itself fails, the temp directory is kept and the error names it
+   (`restore failed and rollback incomplete; old data kept in <dir>: <err>`). On
+   success the temp directory, with the old items, is removed.
 4. Print `Restored <N> session(s) from <path>`.
 
 ### 6.5 Plurals

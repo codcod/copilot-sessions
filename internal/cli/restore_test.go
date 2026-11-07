@@ -2,6 +2,8 @@ package cli
 
 import (
 	"archive/tar"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -205,5 +207,67 @@ func TestRestoreCompat(t *testing.T) {
 	py("restore", f2, "-y")
 	if got := py("list", "-q"); got != ids {
 		t.Errorf("python restore of go archive:\n%s\nwant:\n%s", got, ids)
+	}
+}
+
+// tree is every path under dir with file bytes and symlink targets, to compare whole homes.
+func tree(t *testing.T, dir string) string {
+	t.Helper()
+	var b strings.Builder
+	filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			t.Fatal(err)
+		}
+		rel, _ := filepath.Rel(dir, p)
+		b.WriteString(rel + "\n")
+		if d.Type().IsRegular() {
+			b.Write(must(os.ReadFile(p)))
+		} else if d.Type()&fs.ModeSymlink != 0 {
+			l, _ := os.Readlink(p)
+			b.WriteString("-> " + l + "\n")
+		}
+		return nil
+	})
+	return b.String()
+}
+
+// A failure while swapping items puts every current item back (CS-004 F4).
+func TestRestoreRollback(t *testing.T) {
+	for _, rollbackFails := range []bool{false, true} {
+		fx := testfix.Build(t)
+		file := filepath.Join(t.TempDir(), "b.tar.gz")
+		mustRun(t, fx, "backup", file)
+		mustRun(t, fx, "clean", "--all", "--include-ongoing", "-y")
+		before := tree(t, fx.Home)
+
+		sidebar := filepath.Join(fx.Home, "sidebar-sessions-state")
+		rename = func(from, to string) error {
+			// <home>/tmpNNN/<item> is the extracted item; <home>/tmpNNN/old/<item> the rollback.
+			extracted := strings.HasPrefix(filepath.Base(filepath.Dir(from)), "tmp")
+			if to == sidebar && (extracted || rollbackFails) {
+				return errors.New("boom")
+			}
+			return os.Rename(from, to)
+		}
+		t.Cleanup(func() { rename = os.Rename })
+
+		_, errOut, code := run(fx, nil, "restore", file, "-y")
+		rename = os.Rename
+		if !rollbackFails {
+			if code != 1 || errOut != "error: restore failed, nothing changed: boom\n" {
+				t.Fatalf("exit %d: %q", code, errOut)
+			}
+			if got := tree(t, fx.Home); got != before {
+				t.Errorf("home changed:\n%s\nwant:\n%s", got, before)
+			}
+			continue
+		}
+		old, _ := filepath.Glob(filepath.Join(fx.Home, "tmp*", "old"))
+		if code != 1 || len(old) != 1 || errOut != "error: restore failed and rollback incomplete; old data kept in "+old[0]+": boom\n" {
+			t.Fatalf("exit %d: %q, old %v", code, errOut, old)
+		}
+		if !exists(filepath.Join(old[0], "sidebar-sessions-state")) {
+			t.Error("old sidebar state not kept")
+		}
 	}
 }
