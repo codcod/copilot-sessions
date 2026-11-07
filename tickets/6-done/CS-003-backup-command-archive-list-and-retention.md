@@ -301,3 +301,4 @@ cost: estimated M, actual M
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
 - 2026-11-07 — IN REVIEW → DONE: review round 2 clean: F1 fixed; 14 noted (F2–F15)
 - 2026-11-07 — published: branch feat/CS-003-backup-command pushed (2 commits, history kept), PR #4 https://github.com/codcod/copilot-sessions/pull/4 opened against main; awaiting human merge
+- 2026-11-07 — follow-up filed: noted findings F2–F9 and F14 promoted to CS-007 (backup robustness) at the user's request
