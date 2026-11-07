@@ -205,7 +205,31 @@ changelog.
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review — round 1 (2026-11-07)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | `restore` argument completion drops the typed directory prefix: `filepath.Glob` cleans `./m*.tar.gz` to `my.tar.gz`, which bash/zsh then filter out against `./m`; a `~/` prefix is not expanded, so nothing under home completes | reproduced: `__complete restore ./m` in a dir holding `my.tar.gz` → `latest`, `my.tar.gz`, `:4`; `__complete restore '~/'` → only `latest`. `internal/cli/complete.go:100` | split `toComplete` into dir + base, glob in the expanded dir, return `dir + name` so the typed prefix is kept verbatim; add a test case |
+| F2 | non-blocking | design | noted | `restore` completion does not offer directories, so a tarball in a subdirectory completes only once the directory is typed | `__complete restore s` → `latest`; `__complete restore sub/` → `sub/inner.tar.gz`. A direct consequence of CS-005 decision 5 (`NoFileComp` + in-process glob) | offer `toComplete*` directories with a trailing `/` — a change to decision 5, needs sign-off |
+| F3 | non-blocking | test-gap | noted | no test asserts the ID order (`session.Sort`, decision 2), `--since`, `clean` IDs or `list --status`; `RegisterFlagCompletionFunc` errors are discarded, so a renamed flag would lose completion silently | `internal/cli/complete_test.go`; `internal/cli/complete.go:35-43,51` | assert order and `--since`, or panic on a registration error |
+| F4 | non-blocking | design | noted | `--status` completion is case-sensitive while `ParseStatuses` is not: `Closed,<TAB>` offers `Closed,closed`, which the parser accepts as a duplicate | `internal/cli/complete.go:80-88`; `internal/filter/filter_test.go:55` | lowercase + trim the chosen parts |
+| F5 | non-blocking | spec-unclear | noted | the cutover record diverges from Task 4's wording: no session count, and the binary came in as a `.deb` in `/usr/bin` rather than `~/.local/bin`; a later `just install` on that host would shadow the apt copy | History (cutover lines); `README.md:12` | the `.deb` was a one-off test channel, not a release path; a release-automation ticket would own README apt docs |
+
+Disposition summary: 1 blocking (F1 → rework); 4 noted (F2, F3, F4, F5); 0 fixed inline, 0 folded, 0 new tickets.
+cost: estimated S, actual S
+
+- [x] Reviewer independence settled (step 0): delegated — the orchestrator wrote the branch, so an independent sub-agent ran steps 1–4a; no delegated finding discarded (F1 re-verified by hand)
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` 0 errors, 0 warnings (after rebasing the branch onto main)
+- [x] Implementation audit — acceptance test re-run green (gofmt, vet, `go test` macOS, `just test-linux`, TestParity RUN/PASS, `:6`, `#compdef`); Tasks 1–3 met, Task 4 done by the user on WSL (F5)
+- [x] Correctness hunt (step 3): angle hunt, one pass over angles 1–8 incl. 7, run by the delegated reviewer, no further sub-agents; F1/F2 reproduced via `__complete`; reviewer's own discard: newlines in names (cobra keeps first line only)
+- [x] Consistency audit (step 4)
+- [x] Documentation audit (step 4a): README covers install + completion + commands; no docs build, no changelog by design
+- [x] Docs-readability pass (step 4b): skipped — conscious skip, README change is short and was read in the consistency audit
+- [x] Findings recorded with severity, class and disposition; summary and cost lines present (step 5)
+- [x] Ticket moved to `tickets/5-rework/` (step 6a)
+- [ ] Other references / governing documents (step 7) — at conclusion
+- [ ] Impact sweep (step 8) — at conclusion
+- [ ] Summary + commit message & MR for approval (step 9) — at conclusion
 
 ## History
 
@@ -216,3 +240,4 @@ changelog.
 - 2026-11-07 — plan amended inline: Task 4 delivered the binary as a `.deb` (0.0.0~cs005.d72b817, amd64) pushed to Cloudsmith `codcod/copilot-sessions` (any-distro/any-version, built from a throwaway goreleaser config, nothing committed) and installed with `apt install copilot-sessions` into `/usr/bin`; parity compared `~/.local/bin` (Python) against `/usr/bin`, and the cutover removed the Python script from `~/.local/bin` instead of overwriting it
 - 2026-11-07 — cutover on WSL: parity clean (user-reported; session count not given); Python script replaced
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1); 4 noted (F2–F5)
