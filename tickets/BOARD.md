@@ -58,7 +58,7 @@ Last updated: 2026-11-07
 | CS-004 | restore command with safe extraction and Python compatibility | yes — merged to main (PR #5, 4fdd2df, https://github.com/codcod/copilot-sessions/commit/4fdd2df) |
 | CS-005 | Shell completion, install and cutover from the Python script | no — publish-gated |
 | CS-006 | justfile for build, test, lint and install | yes — merged to main (PR #2, d1336c3, https://github.com/codcod/copilot-sessions/commit/d1336c3) |
-| CS-007 | backup robustness: atomic archive, live-file races and error reporting | no — publish-gated |
+| CS-007 | backup robustness: atomic archive, live-file races and error reporting | yes — merged to main (PR #6, e8e6b91, https://github.com/codcod/copilot-sessions/commit/e8e6b91) |
 
 ## DROPPED
 
