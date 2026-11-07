@@ -272,3 +272,4 @@ CS-005 writes the usage section. No changelog.
 - 2026-11-07 — impact sweep from CS-002 review: `plural` lives in `internal/cli/cli.go`, not `confirm.go`; prerequisite line corrected.
 - 2026-11-07 — applicability gate (independent sub-agent): no blocking findings. G1 (non-blocking, stale-reference): script help range was 715–717 → plan amended inline: Task 2 help-string range corrected to 717–719. G2 (non-blocking, sequencing): overlap with CS-007 F2 (partial newest archive picked by `latest`) and F8 (sort order) — noted and closed; decision 7 already leaves current data untouched on a failed extraction.
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
+- 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
