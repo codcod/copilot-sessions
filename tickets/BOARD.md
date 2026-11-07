@@ -20,11 +20,10 @@ Last updated: 2026-11-07
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-006 | justfile for build, test, lint and install | [CS-001] |
 
 ## REWORK
 
@@ -58,6 +57,7 @@ Last updated: 2026-11-07
 | id | title | merged |
 |---|---|---|
 | CS-001 | Go scaffold, session model and list command | yes — merged to main (PR #1, 533c9c0, https://github.com/codcod/copilot-sessions/commit/533c9c0) |
+| CS-006 | justfile for build, test, lint and install | no — publish-gated |
 
 ## DROPPED
 

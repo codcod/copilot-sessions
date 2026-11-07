@@ -242,7 +242,33 @@ just clean && test ! -e copilot-sessions
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review — round 1 (2026-11-07)
+
+Branch `feat/CS-006-justfile`, reviewed at `01f81c1` (rebased onto `main` after `pickle doctor`
+flagged the stale ticket copy).
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | non-blocking | correctness | noted | `completion` redirects straight into `~/.zsh/completions/_copilot-sessions`, so the shell truncates the file before the command runs. A failing `completion zsh` leaves an empty completion file. | Delegated reviewer reproduced it in scratch: an existing file with `#compdef old`, then a failing command redirected into it → 0 bytes. The build has just succeeded at that point, so this is very unlikely, and rerunning regenerates the file. | Write to a temp file and `mv` it into place if this ever bites. |
+| F2 | non-blocking | design | noted | `test-linux` runs the host-arch image (`linux/arm64` on Apple Silicon), while the shipping target is `GOARCH=amd64`. | `go version` in `golang:1.26` on this Mac reports `linux/arm64`. The `/proc` paths do not depend on architecture. | Add `--platform linux/amd64` if an arch-specific path ever appears (emulation is slow). |
+| F3 | non-blocking | design | noted | The gofmt drift block appears verbatim in both `lint` and `fmt-check`. | `justfile` `lint` / `fmt-check`. The plan mandated this text, which is copied from the template. | Make it `lint: fmt-check` + `go vet ./...` if the block ever changes. |
+
+Disposition summary: 0 blocking; 0 fixed inline; 3 noted (F1–F3); 0 folded; 0 new tickets.
+cost: estimated S, actual S
+
+Checklist:
+
+- [x] Reviewer independence (step 0): the audits were delegated to a fresh independent reviewer (`hunt: one pass`), because the orchestrator wrote the branch. Every delegated finding was re-verified by hand; none discarded.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` flagged the stale ticket copy, the branch was rebased onto `main`, and the re-run was clean. The remaining `AGENTS.md` marker warning predates this branch.
+- [x] Implementation audit (steps 1 and 2): the delegated reviewer re-ran the acceptance test verbatim and it was green on macOS and in Docker `golang:1.26` (ongoing, ancestor and Parity tests ran, not skipped). Tasks 1–2 and decisions 1–6 hold.
+- [x] Correctness hunt (step 3): one pass over the angles, no host tool (low complexity). F1 was reproduced; F2 and F3 were traced.
+- [x] Consistency audit (step 4): AGENTS.md's `just test-linux` reference is now true. `development/spec.md` §2 ("a `Makefile` or `justfile`") still holds.
+- [x] Documentation audit (step 4a): README § Development covers the recipes; install/completion walkthrough deferred to CS-005 by the plan. No docs build configured.
+- [x] Docs-readability pass (step 4b): conscious skip. The only changed prose is three README lines, and no dedicated reviewer is configured.
+- [x] Findings recorded with severity, class and disposition. Summary and cost lines are present.
+- [x] Other references and governing docs (step 7): nothing to update.
+- [x] Impact sweep (step 8): CS-002/CS-003 fall back to "the `docker run` in README" if CS-006 is unmerged. That block is gone once this merges, which is exactly when the fallback stops applying. No change needed.
+- [x] Ticket moved to `6-done/`, with a History line (step 6).
 
 ## History
 
@@ -251,3 +277,4 @@ just clean && test ! -e copilot-sessions
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
 - 2026-11-07 — plan amended inline: acceptance keeps GOCACHE/GOMODCACHE pointed at the real caches under the throwaway HOME (else a cold, networked rebuild leaves read-only module files); vim modeline fixed to `set ft=make et ai:` (applicability gate, non-blocking)
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-07 — IN REVIEW → DONE: review round 1: no blocking findings; 3 noted
