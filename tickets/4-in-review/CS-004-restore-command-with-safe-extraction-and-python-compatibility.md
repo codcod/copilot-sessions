@@ -333,6 +333,15 @@ cost: estimated M, actual M
 - [x] Correctness hunt (step 3): one pass over all 8 angles on the fix diff (scoped re-review), no host tool, no sub-agents; R1 reproduced.
 - [x] Consistency (step 4): R2, R3. Docs (step 4a): spec note count (R3). Docs-readability (4b): conscious skip.
 
+### Rework fix record — round 2 (commit 596fbee)
+
+Diff: `git diff d0f6ae2..596fbee`. The in-tree rebase that follows this bookkeeping commit rewrites both SHAs; on the branch, the fix is the top commit `fix(restore): reject any top-level item restored as a symlink (CS-004)` (`HEAD~1..HEAD`).
+
+- **R1** — `internal/backup/restore.go`: the lexical per-member check is gone. After extraction, each of `backup.Items` is `root.Lstat`-ed, and a symlink rejects the archive. That covers `./name`, `a/../name` and a hard link to a symlink. Cases `top dot`, `top updown` and `top hardlink` were added to `TestRestoreRejectsUnsafeArchives` (`top hardlink` carries a top-level `x`, so it reaches the check rather than failing on a dangling chmod). Each case was confirmed to fail with `top-level item is a symlink`, and the reviewer's three repro archives fail the same way on the binary.
+- **R3** (fixed inline) — spec §6.4 note now lists three departures; decision 4 amended on `main`.
+
+Acceptance re-run: gofmt 0, `go vet` clean, `go test -count=1 ./...` green on macOS and `just test-linux` green.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.4, §9 cases 11-12 (Go rewrite of copilot-sessions)
@@ -346,3 +355,4 @@ cost: estimated M, actual M
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
 - 2026-11-07 — plan amended inline: decision 4 adds the top-level-items-are-never-links rule (review F3/R1, R3).
 - 2026-11-07 — IN REVIEW → REWORK: review round 2: R1 blocking; R2, R3 fixed inline; R4, R5 noted
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed (round 2)
