@@ -9,7 +9,7 @@ hand — edit the tickets. Hand-written planning notes live in [`NOTES.md`](NOTE
 **WIP limits (per child-project):**
 - `copilot-sessions`: `3-in-development/` ≤ 1 · `4-in-review/` ≤ 1
 
-Last updated: 2026-11-06
+Last updated: 2026-11-07
 
 ## IN DEVELOPMENT
 
@@ -38,6 +38,11 @@ Last updated: 2026-11-06
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-002 | clean command: filtered deletion of sessions, DB rows and UI state | high | medium | M | [CS-001] |  |
+| CS-003 | backup command: archive, list and retention | high | medium | M | [CS-001] |  |
+| CS-004 | restore command with safe extraction and Python compatibility | high | high | M | [CS-002, CS-003] |  |
+| CS-005 | Shell completion, install and cutover from the Python script | medium | low | S | [CS-001, CS-002, CS-003, CS-004, CS-006] |  |
+| CS-006 | justfile for build, test, lint and install | medium | low | S | [CS-001] |  |
 
 ## TO DO (impact order, per child)
 
@@ -45,11 +50,6 @@ Last updated: 2026-11-06
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-002 | clean command: filtered deletion of sessions, DB rows and UI state | high | medium | M | [CS-001] |  |
-| CS-003 | backup command: archive, list and retention | high | medium | M | [CS-001] |  |
-| CS-004 | restore command with safe extraction and Python compatibility | high | high | M | [CS-002, CS-003] |  |
-| CS-005 | Shell completion, install and cutover from the Python script | medium | low | S | [CS-001, CS-002, CS-003, CS-004, CS-006] |  |
-| CS-006 | justfile for build, test, lint and install | medium | low | S | [CS-001] |  |
 
 ## DONE
 
