@@ -96,6 +96,7 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 	root.SetErr(env.Stderr)
 	root.SetArgs(args)
 	root.AddCommand(newList(env), newClean(env), newBackup(env), newRestore(env))
+	registerCompletions(root, env)
 
 	err := root.Execute()
 	if err == nil {
