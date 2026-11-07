@@ -20,11 +20,10 @@ Last updated: 2026-11-07
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-005 | Shell completion, install and cutover from the Python script | [CS-001, CS-002, CS-003, CS-004, CS-006] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-07
 
 | id | title | open findings |
 |---|---|---|
+| CS-005 | Shell completion, install and cutover from the Python script | re-review round 3: 1 blocking (R3-F1); 1 fixed inline, 1 noted; rework cap reached |
 
 ## READY (impact order, per child)
 

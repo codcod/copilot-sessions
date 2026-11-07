@@ -234,7 +234,7 @@ cost: estimated S, actual S
 - [ ] Impact sweep (step 8) — at conclusion
 - [ ] Summary + commit message & MR for approval (step 9) — at conclusion
 
-### Rework fix record — round 1 (commit 1d874a1)
+### Rework fix record — round 1 (commit 6b72839 — was 1d874a1 before a rebase onto main)
 
 - **F1** — `completeRestore` splits `toComplete` into dir + base, globs `base*.tar.gz` in `filter.ExpandUser(dir)`, and returns `dir + name`, so `./`, `~/` and `sub/` prefixes come back as typed (`internal/cli/complete.go`). `TestCompleteRestore` gains `./x` → `./x.tar.gz`, `~/` → `~/h.tar.gz` (HOME pointed at a temp dir) and `sub/` → `sub/s.tar.gz`; the first two fail on the pre-fix code. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
 
@@ -253,6 +253,18 @@ Reviewer independence: delegated (fresh sub-agent, scoped to the fix diff); R2-F
 
 - **R2-F1** — per amended decision 5 (user sign-off), `completeRestore` returns `tar.gz` + `ShellCompDirectiveFilterFileExt` as soon as the argument contains `/`, so the shell completes `~/`, `./` and subdirectories itself; slash-free input still gets `latest`, the backups newest first, then `*.tar.gz` in the working dir. The unreachable `ExpandUser(dir)` branch and the `"~/"` test case are gone; `TestCompleteRestore` asserts the `FilterFileExt` directive for `./x`, `/home/u/` and `sub/`. R2-F2 disappears with it (no directory goes into the glob any more). Checked end to end in a real `zsh -f` + compinit via zpty: `~/h` → `~/h.tar.gz`, `./m` → `./my.tar.gz`, `sub/` → `sub/s.tar.gz`. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
 
+### Review — round 3, scoped re-review of d939307 (2026-11-07)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| R3-F1 | blocking | correctness | — | no completion sets `ShellCompDirectiveKeepOrder`, so zsh's `_describe` (and bash) re-sort candidates alphabetically: `restore` loses `latest`-first and newest-first backups, and session IDs lose the `session.Sort` order — contradicts CS-005 decisions 2 and 5. Pre-existing in round 1's code, outside the round-2 diff | unreproduced in a live shell; traced: `__complete restore ""` and `__complete list ""` end in `:4` (bit 32 unset); generated zsh script lines 141-143 pass `-V` to `_describe` (line 181) only when KeepOrder is set; `grep -rn KeepOrder internal/` finds nothing. `internal/cli/complete.go` `completeIDs`, `completeRestore` | OR `ShellCompDirectiveKeepOrder` into the ID and slash-free restore directives; assert the bit in the tests |
+| R3-F2 | non-blocking | stale-xref | fixed inline | the round-1 fix record named `1d874a1`, which a later rebase onto main replaced with `6b72839` | `git merge-base --is-ancestor 1d874a1 HEAD` fails | record heading corrected to `6b72839` (with the old SHA noted) |
+| R3-F3 | non-blocking | design | noted | once the restore argument has a `/`, the in-process backup list is no longer offered; plain file completion still reaches the backups one directory at a time | `internal/cli/complete.go` `completeRestore`; follows from amended decision 5 | none |
+
+Disposition summary: 1 blocking (R3-F1 → rework); 1 fixed inline (R3-F2); 1 noted (R3-F3).
+Reviewer independence: delegated (fresh sub-agent, scoped to d939307); R2-F1 verified closed (`_files -g *.tar.gz` path, plus the author's real-zsh check); R3-F1 re-verified by hand against the generated zsh script; the reviewer discarded its own garbled zpty run.
+Rework cap: this invocation has used its two rework rounds — session stops with the ticket in `5-rework/`; the next "rework ticket CS-005" starts a fresh count.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §8, §13 (Go rewrite of copilot-sessions)
@@ -267,3 +279,4 @@ Reviewer independence: delegated (fresh sub-agent, scoped to the fix diff); R2-F
 - 2026-11-07 — IN REVIEW → REWORK: re-review round 2: 1 blocking (R2-F1); 2 noted
 - 2026-11-07 — plan amended inline: decision 5 — restore argument with a `/` falls back to shell file completion (`tar.gz` + `FilterFileExt`) instead of the in-process glob, because cobra expands `~` before `__complete` (R2-F1); user signed off on this route over narrowing F1 to `./`
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
+- 2026-11-07 — IN REVIEW → REWORK: re-review round 3: 1 blocking (R3-F1); 1 fixed inline, 1 noted; rework cap reached
