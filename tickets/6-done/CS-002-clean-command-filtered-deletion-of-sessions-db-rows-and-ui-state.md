@@ -286,3 +286,4 @@ Checklist:
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-07 — IN REVIEW → DONE: review passed: 0 blocking, 11 noted (F1–F11), 0 new tickets; F11 corrects the earlier History line — TestParity runs and passes in the Linux container
 - 2026-11-07 — published: pushed `feat/CS-002-clean-command` (259ae32) and opened PR #3 (https://github.com/codcod/copilot-sessions/pull/3); awaiting human merge.
+- 2026-11-07 — merged to main (PR #3, 309e7ee, https://github.com/codcod/copilot-sessions/commit/309e7ee)
