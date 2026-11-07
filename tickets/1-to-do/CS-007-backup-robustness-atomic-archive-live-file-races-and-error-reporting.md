@@ -51,6 +51,10 @@ cuts over from the script, but each departure should be named in the plan.
 - **F9 — reporting after success.** If `session.Dirs` fails after the archive is written, the
   command exits 1 for a backup that exists, and `--keep` is skipped. Report the backup anyway,
   with a warning, and continue.
+- **CS-004 F4 — restore replace window.** `restore` deletes each current item before renaming
+  its replacement in; if a rename fails mid-way, the deferred `RemoveAll(tmp)` also deletes the
+  restored data not yet moved. Move old items aside and roll back on failure, or keep `tmp` and
+  name it in the error.
 
 Out of scope, and still `noted` on CS-003: F10 (`ExpandUser` location), F11 (PAX sub-second
 mtimes), F12/F15 (test error checks) and F13 (name literals).
@@ -72,3 +76,4 @@ or skip a short file).
 ## History
 
 - 2026-11-07 — created (TO DO). source: review: CS-003 review findings F2–F9 and F14, batched as one backup-robustness theme at the user's request
+- 2026-11-07 — folded: CS-004 review F4 (restore replace window) added to the Description.

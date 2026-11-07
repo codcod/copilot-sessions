@@ -263,7 +263,40 @@ CS-005 writes the usage section. No changelog.
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review round 1 — 2026-11-07 (branch `feat/CS-004-restore-command` @ 260b5ef)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | A symlink target with balanced `..` escapes the tree: `filepath.IsLocal` is lexical, and the kernel resolves `..` after following an allowed `s -> .` link. Contradicts CS-004 decision 4 ("if it has any `..`"), spec §6.4 step 2 and the Outcome. Python `filter="data"` normalises the same archive into the tree, so Go is *less* strict than the reference. | Reproduced: archive `session-state/`, `session-state/s -> .`, `session-state/evil -> s/s/s/s/s/s/s/s/../../../../../../../../etc`; `restore -y` exits 0 ("Restored 2 sessions"), `readlink -f $H/session-state/evil` → `/private/etc`. `internal/backup/restore.go:77` | Reject a link target that has any `..` element (as decision 4 says), not just `!IsLocal`; add the `s -> .` + balanced-`..` case to the rejection table. |
+| F2 | blocking | correctness | — | Directory modes from the archive are applied (CS-004 decision 5). A dir without owner write (e.g. `session-state` `0555`) makes the rename into `COPILOT_HOME` fail *after* the current `session-state` was deleted: the user loses the current sessions and the restored copy is stranded in an undeletable `tmp*` dir. Python `filter="data"` ignores directory modes (`mode = None` for dirs), so it succeeds. | Reproduced (macOS): Python-built archive with `session-state` mode `0555` → `error: rename …/tmp1910346953/session-state …/session-state: permission denied`, exit 1; home left with only `config` and `tmp1910346953`; `rm -rf` of it fails with EACCES. `internal/backup/restore.go:67,113-121` | Follow Python: do not chmod directories (create them with the umask default), keep only the mtime. Needs user sign-off, since it departs from CS-004 decision 5. |
+| F3 | blocking | correctness | — | A top-level item may be extracted as a symlink (`session-state -> config`); after the rename it redirects `COPILOT_HOME/session-state` to a sibling dir outside the restored tree, which a later `clean --all` would empty. | Reproduced: archive with member `session-state` symlink → `config`; `restore -y` exits 0, `ls -la $H` shows `session-state -> config`. `internal/backup/restore.go:73-78` | Reject a symlink or hard link whose name is a top-level item (no `/`); the four items must be a real dir or file. |
+| F4 | non-blocking | design | folded | Replace deletes each current item before renaming its replacement in; if a rename fails mid-way, the deferred `RemoveAll(tmp)` also deletes the not-yet-moved restored data. Same window as the script (CS-004 decision 8); with F2 fixed no known trigger remains. | Traced: `internal/cli/restore.go:86-112` → return → `defer os.RemoveAll(tmp)`; F2's repro hits this path. | Folded into CS-007 (backup/restore robustness): move old items aside and roll back, or keep `tmp` and name it on failure. |
+| F5 | non-blocking | stale-xref | fixed inline | The reworded `ponytail:` comment in `cmd/copilot-sessions/main.go` says a Ctrl-C mid-restore only leaves a harmless `tmp*` dir; a Ctrl-C between delete and rename leaves the restored data only in that dir (decision 8's mid-replace window). | `cmd/copilot-sessions/main.go:16-18` | Name the mid-replace window in the comment (rework pass, no behaviour change). |
+| F6 | non-blocking | test-gap | noted | `pythonRunner` now skips `TestParity` on python3 < 3.12, though list/clean parity needs no `filter="data"`, and `data_filter` was backported to 3.8.17/3.9.17/3.10.12/3.11.4. | `internal/cli/parity_test.go` `pythonRunner` | Gate on `hasattr(tarfile, "data_filter")`, and only in `TestRestoreCompat`. |
+| F7 | non-blocking | spec-unclear | noted | Spec §6.4 step 2 says "reject `..` components" for names; the code (and Python) accepts balanced names like `session-state/x/../y`, confined by `os.Root`. | `internal/backup/restore.go:59`; repro `session-state/x/../../evil` fails only because `x` is absent | Reword the spec to "names that escape the target", or reject any `..` element in names as well. |
+| F8 | non-blocking | correctness | noted | Archive-supplied member names and link targets are printed raw (`%s`) in errors, so a crafted archive can send terminal escape sequences. | `internal/backup/restore.go:60,78,83,100` (code reading) | Use `%q`. |
+| F9 | non-blocking | test-gap | noted | `TestRestoreRejectsUnsafeArchives` asserts only exit 1 + non-empty stderr; a case could pass on an unrelated error. | `internal/cli/restore_test.go` rejection table | Assert the expected message per case. |
+| F10 | non-blocking | design | noted | The replace loop's Lstat/IsDir/RemoveAll-or-Remove branch and the `-wal`/`-shm` ErrNotExist loop re-implement `os.RemoveAll`. | `internal/cli/restore.go:86-104` | `os.RemoveAll` on each of `dest`, `dest-wal`, `dest-shm`. |
+| F11 | non-blocking | design | noted | `filepath.IsAbs` before `!filepath.IsLocal` is redundant (IsLocal is false for absolute paths); the hard-link branch already omits it. | `internal/backup/restore.go:59,77` | Drop the `IsAbs` checks. |
+| F12 | non-blocking | design | noted | The archive is gunzipped twice (Inspect, then Extract). The script does the same (`getnames` then `extractall`). | `internal/cli/restore.go:47,81` | None now. |
+
+Disposition summary: 3 blocking (F1–F3, → rework); 9 non-blocking: 1 fixed inline (F5), 1 folded (F4 → CS-007), 7 noted (F6–F12), 0 new tickets.
+cost: estimated M, actual M
+
+**Checklist**
+
+- [x] Reviewer independence settled (step 0): delegated to an independent sub-agent (the orchestrator wrote the branch). Delegated findings discarded on re-verification: none. The delegated reviewer itself dropped four candidates (hardlink to symlink, `TypeRegA`, top-level downward symlink, gzip bomb). The orchestrator re-raised the top-level symlink as F3 from the host tool's finding: it redirects into a sibling of the restored tree.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` warned that the ticket was stale on the branch; rebased onto `main`; re-run clean.
+- [x] Implementation audit (steps 1, 2): acceptance re-run by the delegated reviewer (gofmt 0, vet clean, `go test` green, compat test executed on python3 3.15.2, `just test-linux` green, build + empty-home smoke exit 1). Tasks 1–4 met; decision 4 not met (F1).
+- [x] Correctness hunt (step 3): host tool path, `/code-review high` run by the top-level session on `main...feat/CS-004-restore-command`. 9 candidates; 0 discarded (tool #1 → F2, #2 → F4, #3 → F5, #4 → F3, #5 → F6, #6 → F7, #7 → F10, #8 → F11, #9 → F12). Angle 7 ran separately (one pass, delegated reviewer): F1, F8. F1–F3 reproduced; F4 traced.
+- [x] Consistency audit (step 4): F1 and F7 are contradictions with decision 4 and the spec.
+- [x] Documentation audit (step 4a): no shipped docs tree; `restore --help` and the spec §6.4 note are present; README deferred to CS-005 by plan.
+- [ ] Docs-readability pass (step 4b): conscious skip; the only changed prose is a two-line spec note.
+- [x] Findings recorded with severity, class and disposition; summary + cost lines present (step 5).
+- [x] Ticket moved to `tickets/5-rework/` (step 6).
+- [x] Other references: CS-007 gets F4's item; the spec note will be revisited by the F2 fix (step 7).
+- [x] Impact sweep (step 8): CS-005 (README usage) and CS-007 reference restore; no assumption invalidated beyond F4's fold.
+- [ ] Summary + commit message presented: deferred until the rework re-review concludes (step 9).
 
 ## History
 
@@ -273,3 +306,4 @@ CS-005 writes the usage section. No changelog.
 - 2026-11-07 — applicability gate (independent sub-agent): no blocking findings. G1 (non-blocking, stale-reference): script help range was 715–717 → plan amended inline: Task 2 help-string range corrected to 717–719. G2 (non-blocking, sequencing): overlap with CS-007 F2 (partial newest archive picked by `latest`) and F8 (sort order) — noted and closed; decision 7 already leaves current data untouched on a failed extraction.
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-07 — IN REVIEW → REWORK: review round 1: F1–F3 blocking; F5 fixed inline, F4 folded into CS-007, F6–F12 noted

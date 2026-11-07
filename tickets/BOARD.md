@@ -20,11 +20,10 @@ Last updated: 2026-11-07
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-004 | restore command with safe extraction and Python compatibility | [CS-002, CS-003] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-07
 
 | id | title | open findings |
 |---|---|---|
+| CS-004 | restore command with safe extraction and Python compatibility | review round 1: F1–F3 blocking; F5 fixed inline, F4 folded into CS-007, F6–F12 noted |
 
 ## READY (impact order, per child)
 
