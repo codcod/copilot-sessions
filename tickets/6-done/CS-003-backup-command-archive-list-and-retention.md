@@ -300,3 +300,4 @@ cost: estimated M, actual M
 - 2026-11-07 — IN REVIEW → REWORK: F1 blocking: backup fails on a growing live file
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
 - 2026-11-07 — IN REVIEW → DONE: review round 2 clean: F1 fixed; 14 noted (F2–F15)
+- 2026-11-07 — published: branch feat/CS-003-backup-command pushed (2 commits, history kept), PR #4 https://github.com/codcod/copilot-sessions/pull/4 opened against main; awaiting human merge
