@@ -240,3 +240,4 @@ The README is unchanged here; CS-005 writes the usage section. No changelog.
 - 2026-11-07 — TO DO → READY: plan complete
 - 2026-11-07 — plan amended inline: applicability gate (independent sub-agent, no blocking findings) — CS-002 helpers and `session.SidebarDir` now exist, so the fallback/conditional is dropped; Task 1 lists the `delete.go` caller; Task 4 excludes the snapshot DB from the mode/mtime check, rounds mtime to the second, and pins the WAL test to one connection.
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
+- 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
