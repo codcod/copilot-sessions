@@ -213,3 +213,6 @@ changelog.
 - 2026-11-07 — TO DO → READY: plan complete
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up; applicability gate: no blocking findings
 - 2026-11-07 — plan amended inline: acceptance test now requires `go test -v -run TestParity` to run (not skip) on macOS, since the Docker image has no python3; Task 3 also fixes the stale README sentence on TestParity scope (applicability gate findings 1, 3; findings 2, 4, 5 noted and closed)
+- 2026-11-07 — plan amended inline: Task 4 delivered the binary as a `.deb` (0.0.0~cs005.d72b817, amd64) pushed to Cloudsmith `codcod/copilot-sessions` (any-distro/any-version, built from a throwaway goreleaser config, nothing committed) and installed with `apt install copilot-sessions` into `/usr/bin`; parity compared `~/.local/bin` (Python) against `/usr/bin`, and the cutover removed the Python script from `~/.local/bin` instead of overwriting it
+- 2026-11-07 — cutover on WSL: parity clean (user-reported; session count not given); Python script replaced
+- 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
