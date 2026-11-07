@@ -248,3 +248,4 @@ README is unchanged here; CS-005 writes the usage and install section. No change
 - 2026-11-07 — TO DO → READY: plan complete
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
 - 2026-11-07 — plan amended inline: applicability gate (non-blocking, user-approved) — Task 3 script flag lines 698–703 → 700–704; Task 4 widens `withoutSize` to the clean summary; acceptance drops the stale pre-CS-006 fallback. Noted and closed: `TestParity` likely skips in the Linux container (no python3), so the Linux run is not parity evidence.
+- 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
