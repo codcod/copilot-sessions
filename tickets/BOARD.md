@@ -57,7 +57,7 @@ Last updated: 2026-11-07
 | CS-001 | Go scaffold, session model and list command | yes — merged to main (PR #1, 533c9c0, https://github.com/codcod/copilot-sessions/commit/533c9c0) |
 | CS-002 | clean command: filtered deletion of sessions, DB rows and UI state | yes — merged to main (PR #3, 309e7ee, https://github.com/codcod/copilot-sessions/commit/309e7ee) |
 | CS-003 | backup command: archive, list and retention | yes — merged to main (PR #4, 1829ffb, https://github.com/codcod/copilot-sessions/commit/1829ffb) |
-| CS-004 | restore command with safe extraction and Python compatibility | no — publish-gated |
+| CS-004 | restore command with safe extraction and Python compatibility | yes — merged to main (PR #5, 4fdd2df, https://github.com/codcod/copilot-sessions/commit/4fdd2df) |
 | CS-006 | justfile for build, test, lint and install | yes — merged to main (PR #2, d1336c3, https://github.com/codcod/copilot-sessions/commit/d1336c3) |
 
 ## DROPPED
