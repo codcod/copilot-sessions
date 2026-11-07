@@ -13,10 +13,11 @@ Last updated: 2026-11-07
 
 ## IN DEVELOPMENT
 
-### copilot-sessions (0/1)
+### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
+| CS-005 | Shell completion, install and cutover from the Python script | [CS-001, CS-002, CS-003, CS-004, CS-006] |
 
 ## IN REVIEW
 
@@ -38,7 +39,6 @@ Last updated: 2026-11-07
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-005 | Shell completion, install and cutover from the Python script | medium | low | S | [CS-001, CS-002, CS-003, CS-004, CS-006] |  |
 
 ## TO DO (impact order, per child)
 

@@ -140,6 +140,8 @@ Add an `## Install` section to `README.md` before `## Development`:
   `fpath=(~/.zsh/completions $fpath)` before `compinit`; after that, `exec zsh`.
 - Add a short command overview, one line each for `list`, `clean`, `backup` and `restore`,
   and point at `copilot-sessions --help` and `development/spec.md`.
+- Fix the `## Development` sentence that says TestParity compares only `list`: it covers
+  `list`, `list --json -q`, `clean -n` per filter and `backup --list`.
 
 #### Task 4 — cutover on WSL (human present)
 
@@ -171,6 +173,7 @@ gofmt -l . | wc -l       # 0
 go vet ./...
 go test -count=1 ./...   # completion tests and TestParity pass on macOS
 just test-linux
+go test -count=1 -v -run TestParity ./internal/cli   # must show RUN/PASS, not SKIP (needs python3 ≥ 3.12; the Docker image has none)
 just build && ./copilot-sessions __complete clean --status closed, | tail -1   # ":6" (NoSpace|NoFileComp)
 ./copilot-sessions completion zsh | head -1                                   # "#compdef copilot-sessions"
 ```
@@ -208,3 +211,5 @@ changelog.
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §8, §13 (Go rewrite of copilot-sessions)
 - 2026-11-07 — TO DO → READY: plan complete
+- 2026-11-07 — READY → IN DEVELOPMENT: picked up; applicability gate: no blocking findings
+- 2026-11-07 — plan amended inline: acceptance test now requires `go test -v -run TestParity` to run (not skip) on macOS, since the Docker image has no python3; Task 3 also fixes the stale README sentence on TestParity scope (applicability gate findings 1, 3; findings 2, 4, 5 noted and closed)
