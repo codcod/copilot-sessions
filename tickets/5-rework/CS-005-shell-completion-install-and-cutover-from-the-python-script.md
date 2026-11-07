@@ -96,7 +96,10 @@ nothing. Merging is always the human's.
 5. **The `restore` argument is completed in-process,** because cobra cannot mix fixed values
    with file completion in one directive. It offers `latest`, then `backup.List(BackupDir)`
    (newest first), then `filepath.Glob(toComplete + "*.tar.gz")` entries not already
-   offered, with `NoFileComp`. A second argument gets nothing. The `backup` FILE uses
+   offered, with `NoFileComp` — but only while `toComplete` has no `/`. Once it has one,
+   return `tar.gz` with `ShellCompDirectiveFilterFileExt` and let the shell complete the path
+   (cobra's scripts expand `~` before `__complete` runs, so an in-process glob cannot answer
+   `~/`; amended 2026-11-07, R2-F1, user sign-off). A second argument gets nothing. The `backup` FILE uses
    `[]string{"tar.gz"}` with `ShellCompDirectiveFilterFileExt`.
 6. **Install is `just install`; the completion is `just completion`.** Both come from
    CS-006, and neither runs in tests.
@@ -258,3 +261,4 @@ Reviewer independence: delegated (fresh sub-agent, scoped to the fix diff); R2-F
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1); 4 noted (F2–F5)
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
 - 2026-11-07 — IN REVIEW → REWORK: re-review round 2: 1 blocking (R2-F1); 2 noted
+- 2026-11-07 — plan amended inline: decision 5 — restore argument with a `/` falls back to shell file completion (`tar.gz` + `FilterFileExt`) instead of the in-process glob, because cobra expands `~` before `__complete` (R2-F1); user signed off on this route over narrowing F1 to `./`
