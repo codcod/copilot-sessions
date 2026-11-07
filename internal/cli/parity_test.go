@@ -14,7 +14,7 @@ import (
 	"github.com/codcod/copilot-sessions/internal/testfix"
 )
 
-// TestParity compares list output with the Python reference script on the same fixture.
+// TestParity compares list and clean -n output with the Python reference script on the same fixture.
 // It skips unless python3 is on PATH.
 func TestParity(t *testing.T) {
 	python, err := exec.LookPath("python3")
@@ -64,6 +64,13 @@ func TestParity(t *testing.T) {
 		if got, want := withoutSize(goRun(args...)), withoutSize(py(args...)); got != want {
 			t.Errorf("%v:\ngo:\n%s\npython:\n%s", args, got, want)
 		}
+		cargs := append([]string{"clean", "-n"}, f...)
+		if f == nil {
+			cargs = append(cargs, "--all")
+		}
+		if got, want := withoutSize(goRun(cargs...)), withoutSize(py(cargs...)); got != want {
+			t.Errorf("%v:\ngo:\n%s\npython:\n%s", cargs, got, want)
+		}
 		args = append(args, "-q")
 		if got, want := goRun(args...), py(args...); got != want {
 			t.Errorf("%v:\ngo:\n%s\npython:\n%s", args, got, want)
@@ -80,7 +87,7 @@ func withoutSize(out string) string {
 	lines := strings.Split(out, "\n")
 	for i, l := range lines {
 		switch {
-		case strings.Contains(l, " sessions ("):
+		case strings.Contains(l, " sessions (") || strings.Contains(l, " sessions selected ("):
 			lines[i] = l[:strings.LastIndex(l, ", ")]
 		case len(l) >= 44 && strings.HasPrefix(l, "  "):
 			lines[i] = l[:36] + l[44:]

@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	StateDir  = "session-state"
-	DBFile    = "session-store.db"
-	OpenState = "open-sessions-state.json"
+	StateDir   = "session-state"
+	DBFile     = "session-store.db"
+	OpenState  = "open-sessions-state.json"
+	SidebarDir = "sidebar-sessions-state"
 )
 
 // Session is one Copilot session, from its directory, the DB or both.
