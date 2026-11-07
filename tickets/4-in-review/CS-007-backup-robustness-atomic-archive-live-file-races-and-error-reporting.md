@@ -274,3 +274,4 @@ there is no changelog.
 - 2026-11-07 — TO DO → READY: plan complete; decisions: F8 left as is, F14 zero-pad, F3 error on collision, restore move-aside rollback
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up; applicability gate: 1 blocking test-design finding amended inline, 3 non-blocking (1 inline, 2 noted)
 - 2026-11-07 — plan amended inline: applicability gate — TestRestoreRollback seam keyed on the extracted source, not the destination (the rollback rename shares it), plus a rollback-also-fails case; TestListErrors restores the dir mode in t.Cleanup. Noted and closed: a leftover hidden .tmp when Remove fails after Link (never matches Pattern); WalkDir's second dir-read-error callback is covered by decision 3.
+- 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green (macOS incl. TestParity, Linux Docker); commits 4022b52, 9b95afd on feat/CS-007-backup-robustness
