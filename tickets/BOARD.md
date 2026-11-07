@@ -20,11 +20,10 @@ Last updated: 2026-11-07
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-003 | backup command: archive, list and retention | [CS-001] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-07
 
 | id | title | open findings |
 |---|---|---|
+| CS-003 | backup command: archive, list and retention | F1 blocking: backup fails on a growing live file |
 
 ## READY (impact order, per child)
 

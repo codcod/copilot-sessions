@@ -232,7 +232,35 @@ The README is unchanged here; CS-005 writes the usage section. No changelog.
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review — round 1 (2026-11-07)
+
+Checklist:
+
+- [x] Reviewer independence (step 0): **delegated**. The branch was written in this session, so a fresh reviewer ran steps 1–4a with `hunt: angle 7 only`. It discarded nothing.
+- [x] Stale-branch check (step 0a): `pickle doctor` warned that the branch had CS-003 in `3-in-development`. The branch was rebased onto `main`, and the warning cleared (0/0).
+- [x] Implementation audit (step 2): Tasks 1–4 and decisions 1–10 are met. The acceptance test was re-run verbatim and is green: gofmt 0, vet clean, `go test` passes on macOS with `TestParity` run, `just test-linux` passes, and the build plus the three binary checks behave as expected.
+- [x] Correctness hunt (step 3): **host tool path**. `/code-review medium` ran over `main...feat/CS-003-backup-command` and returned 10 findings. F1 was reproduced. None were discarded; the other 9 were triaged as non-blocking. The tool does not cover security, so the delegated reviewer ran angle 7 and found nothing (snapshot path bound as a parameter, temp dir 0700 and removed, archive 0600 before any write, symlinks stored and never followed, retention limited to regular files that match the pattern).
+- [x] Quality and consistency audits (steps 3–4): the delegated reviewer raised F11–F13.
+- [x] Docs audit (step 4a): `backup --help` matches script lines 705–712. The README is out of scope (CS-005). There is no docs build.
+- [x] Docs readability (step 4b): skipped, because no `.md`/`.adoc` changed.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | `addTree` copies with an unbounded `io.Copy`. A file that grows after it is stat'ed (a live session appending to `events.jsonl`) makes `tar.Writer` fail, so the backup aborts. | Repro: one goroutine appends to a 1 MiB `session-state/s/events.jsonl` while `Create` runs. Result: `run 0: archive/tar: write too long`. Python's `addfile` copies exactly `tarinfo.size` bytes. | `io.CopyN(tw, f, hdr.Size)`, plus a regression test. |
+| F2 | non-blocking | correctness | noted | On error, `Create` leaves the partial target, which has the newest `copilot-sessions-*` name. A later `--keep` would keep it and drop the good backups. | `backup.go` Create. **CS-003 decision 5** ("On error the partial target is left, as in the script"). Python does the same. Once F1 is fixed, the trigger is rare (disk full, a file vanishing mid-walk). | Write to a temp file in the same dir and rename it on success. This needs user sign-off to change decision 5. |
+| F3 | non-blocking | correctness | noted | `O_TRUNC` on the default name: two backups in the same second overwrite each other. | `backup.go` Create. Python does the same (`tarfile.open(…, "w:gz")`). | `O_EXCL` or a suffix. |
+| F4 | non-blocking | correctness | noted | A file or dir deleted mid-walk (ErrNotExist) aborts the backup. | `addTree` returns the walk error. Python's `tarfile.add` also raises. | Skip `fs.ErrNotExist` in the walk. |
+| F5 | non-blocking | correctness | noted | `os.Lstat` treats any error (including EACCES) as "item absent", so the item is skipped silently. | `backup.go` Create item loop. | Skip only `fs.ErrNotExist`. |
+| F6 | non-blocking | correctness | noted | `List` maps any Stat error on the backup dir to "no backups". | `backup.go` List. Python's `is_dir()` also swallows errors. | Map only ErrNotExist and not-a-dir. |
+| F7 | non-blocking | design | noted | The lock exclusion is a prefix match, so it also drops `.session-operation-locks*` siblings. | **CS-003 decision 4** mirrors the script's prefix test on purpose. | `== locks` or a `locks+"/"` prefix, in both tools. |
+| F8 | non-blocking | design | noted | A `copilot-sessions-<non-timestamp>.tar.gz` sorts above every timestamped backup, so `--keep` would keep it. | Spec §6.3 and Python: sort by name. | Sort by `Created` (spec change). |
+| F9 | non-blocking | correctness | noted | When `session.Dirs` fails after the archive is written, the command exits 1 for a backup that succeeded. | `cli/backup.go` createBackup. Python also raises. | Print the line with 0 sessions, or warn. |
+| F10 | non-blocking | design | noted | `ExpandUser` is a generic path helper exported from `filter`. | **CS-003 decision 10** mandated this export. | Move it if a third user appears. |
+| F11 | non-blocking | design | noted | Go's default tar format rounds mtime to the second, while Python's PAX keeps sub-second precision. | **CS-003 decision 4** ("leave the tar format at Go's default"). The Task 4 test rounds to match. | `hdr.Format = tar.FormatPAX` if fidelity matters (CS-004 case 12). |
+| F12 | non-blocking | test-gap | noted | `seedBackups` ignores the `MkdirAll` and `Chtimes` errors. | `cli/backup_test.go`. | `t.Fatal` on error. |
+| F13 | non-blocking | design | noted | The `copilot-sessions-` and `.tar.gz` literals are repeated in three places. | `backup.Pattern`, `backup.Created`, the default name in `cli/backup.go`. | A `backup.Name(t)` helper. |
+
+Disposition summary: 1 blocking (F1, rework). 12 noted (F2–F13). None fixed inline, folded or turned into tickets. F2–F9 are robustness gaps that the Python reference shares. They are candidates for a "backup robustness" follow-up if the user wants to depart from parity.
 
 ## History
 
@@ -241,3 +269,4 @@ The README is unchanged here; CS-005 writes the usage section. No changelog.
 - 2026-11-07 — plan amended inline: applicability gate (independent sub-agent, no blocking findings) — CS-002 helpers and `session.SidebarDir` now exist, so the fallback/conditional is dropped; Task 1 lists the `delete.go` caller; Task 4 excludes the snapshot DB from the mode/mtime check, rounds mtime to the second, and pins the WAL test to one connection.
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-07 — IN REVIEW → REWORK: F1 blocking: backup fails on a growing live file
