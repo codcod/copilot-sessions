@@ -119,6 +119,9 @@ nothing. Merging is always the human's.
      in-tree `../sibling` link fails the restore. Mark it with a
      `ponytail: downward-only symlinks; resolve against the extracted tree if a real backup ever needs ../ links`
      comment.
+   - **Top-level items are never links (amended 2026-11-07, review F3/R1).** After extraction,
+     any of the four `backup.Items` that `Lstat`s as a symlink rejects the archive; it would
+     otherwise resolve against siblings in `COPILOT_HOME`. Stricter than Python.
    - **Hard links.** The link target is an archive path. Reject if it is not
      `filepath.IsLocal`; create with `root.Link`.
    - **Types.** Only `TypeDir`, `TypeReg` (and the legacy `TypeRegA`), `TypeSymlink` and
@@ -284,9 +287,9 @@ CS-005 writes the usage section. No changelog.
 Disposition summary: 3 blocking (F1–F3, → rework); 9 non-blocking: 1 fixed inline (F5), 1 folded (F4 → CS-007), 7 noted (F6–F12), 0 new tickets.
 cost: estimated M, actual M
 
-### Rework fix record — round 1 (commit c5afa32)
+### Rework fix record — round 1 (commit e4b0b5b)
 
-Diff: `git diff ad5da5b..c5afa32` (branch tip before the fix: ad5da5b).
+Diff: `git diff 1bf5a43..e4b0b5b` (branch tip before the fix: 1bf5a43; recorded first as ad5da5b..c5afa32, rewritten by the rebase onto `main` — R2).
 
 - **F1** — `internal/backup/restore.go`: a symlink target is rejected unless `filepath.IsLocal` *and* it has no `..` element. Regression case `symlink loop` (`session-state/s -> .` plus `session-state/evil -> s/s/../../x`) added to `TestRestoreRejectsUnsafeArchives`. Repro archive now fails with `symlink to … points outside the archive`.
 - **F2** — per the user's decision (decision 5 amended on `main`): directories are created with the umask default (`0o777`) and only their mtime is applied; no chmod. `TestExtractModesAndLinks` now archives `session-state` as `0o2555` and asserts it extracts owner-rwx without setgid. Repro (`0555` dirs) now restores successfully.
@@ -310,6 +313,26 @@ Acceptance re-run: gofmt 0, `go vet` clean, `go test -count=1 ./...` green on ma
 - [x] Impact sweep (step 8): CS-005 (README usage) and CS-007 reference restore; no assumption invalidated beyond F4's fold.
 - [ ] Summary + commit message presented: deferred until the rework re-review concludes (step 9).
 
+
+### Review round 2 (scoped re-review) — 2026-11-07 (branch @ e4b0b5b)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| R1 | blocking | correctness | — | F3's fix is lexical (`!strings.Contains(name, "/")`) and is bypassed: (a) `./session-store.db`, (b) `session-state/../session-store.db`, (c) a hard link `session-store.db` to an in-archive symlink (`root.Link` does not follow, so the top-level name is the symlink inode). The fix record's "hard links cannot redirect" was wrong for (c). | Reproduced (macOS, binary @ e4b0b5b; reviewer also on Linux): each archive → `Restored …`, exit 0, `ls -l $H` shows `session-store.db -> config`. | After extraction, `root.Lstat` each `backup.Items` entry and reject the archive if any is a symlink; add the three cases to the rejection table. |
+| R2 | non-blocking | stale-xref | fixed inline | The round-1 fix record named off-branch SHAs (c5afa32, ad5da5b) after the rebase onto `main`. | `git merge-base --is-ancestor c5afa32 HEAD` → 1; `git diff --stat c5afa32 e4b0b5b` → tickets only | Record corrected to 1bf5a43..e4b0b5b above. |
+| R3 | non-blocking | stale-xref | fixed inline | The top-level-symlink rule is a third departure from Python `filter="data"`; spec §6.4 says "two deliberate departures" and decision 4 omits it. | `development/spec.md:399-401`; decision 4 | Spec note updated on the branch in the round-2 fix; decision 4 amended on `main`. |
+| R4 | non-blocking | test-gap | noted | The new dir-mode assertion dereferences a nil `fi` in `t.Errorf` when Stat fails, so it panics instead of reporting. | `internal/backup/restore_test.go` session-state check | Split into `t.Fatal(err)` then the mode check. |
+| R5 | non-blocking | design | noted | With dir modes ignored (amended decision 5), restored dirs get the umask default (typically 0755), even if the originals were 0700. Matches Python. | `restore.go` `root.MkdirAll(name, 0o777)` | None now; chmod top-level items 0700 after the rename if it ever matters. |
+
+Disposition summary: 1 blocking (R1, → rework round 2); 4 non-blocking: 2 fixed inline (R2, R3), 2 noted (R4, R5), 0 new tickets. Round-1 F1, F2, F5 verified met; F3 partially (→ R1). F9 still applies to the new cases.
+cost: estimated M, actual M
+
+- [x] Reviewer independence (step 0): delegated independent sub-agent; no delegated finding discarded (R1 re-verified by the orchestrator).
+- [x] Stale-branch check (step 0a): `pickle doctor` clean.
+- [x] Implementation audit (steps 1, 2): acceptance re-run green on macOS (compat executed) and Linux; fix diff 1bf5a43..e4b0b5b read.
+- [x] Correctness hunt (step 3): one pass over all 8 angles on the fix diff (scoped re-review), no host tool, no sub-agents; R1 reproduced.
+- [x] Consistency (step 4): R2, R3. Docs (step 4a): spec note count (R3). Docs-readability (4b): conscious skip.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.4, §9 cases 11-12 (Go rewrite of copilot-sessions)
@@ -321,3 +344,5 @@ Acceptance re-run: gofmt 0, `go vet` clean, `go test -count=1 ./...` green on ma
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: F1–F3 blocking; F5 fixed inline, F4 folded into CS-007, F6–F12 noted
 - 2026-11-07 — plan amended inline: decision 5 no longer applies archive directory modes (Python `filter="data"` ignores them); user decision on review F2.
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
+- 2026-11-07 — plan amended inline: decision 4 adds the top-level-items-are-never-links rule (review F3/R1, R3).
+- 2026-11-07 — IN REVIEW → REWORK: review round 2: R1 blocking; R2, R3 fixed inline; R4, R5 noted
