@@ -362,6 +362,24 @@ backups after the first N.
 use the file mtime. With no backups, print `No backups in <dir>`.
 JSON: `[{"file": "<path>", "created": "<ISO local, no zone>", "size": <bytes>}]`.
 
+**Deliberate departures from the script.**
+
+- The archive is written to a hidden temp file (`.copilot-sessions-*.tmp`) in the
+  target's directory and moved into place only when complete. A failed backup
+  leaves nothing that `--list`, `--keep` or `restore latest` could pick.
+- A default-named backup never overwrites an existing file; a second backup in
+  the same second fails with `backup already exists: <path>`. An explicit
+  `FILE` is still overwritten.
+- Entries that vanish while the backup runs are skipped. A file that shrinks
+  after it was stat-ed is padded with zeros to its stat-ed size, as GNU tar does.
+  Any other read error (for example a permission error on a top-level item)
+  fails the backup.
+- Only `.session-operation-locks` itself is excluded; siblings such as
+  `.session-operation-locks-old/` are archived.
+- If the session count cannot be read after the archive is written, the backup
+  is still reported (`Backup created: <path> (<size>)`) after a `warning:` on
+  stderr, and `--keep` still runs.
+
 ### 6.4 `restore`
 
 ```
@@ -400,10 +418,15 @@ Restore steps:
    must point downward (no absolute path, no `..`), none of the four top-level
    items may be a symlink, and a missing `COPILOT_HOME` is created instead of
    failing.
-3. For each of the four top-level items: remove the current item. For
-   `session-store.db`, also remove `session-store.db-wal` and
-   `session-store.db-shm`. Then rename the extracted item into place if it
-   exists in the archive.
+3. For each of the four top-level items: move the current item (for
+   `session-store.db`, also `session-store.db-wal` and `session-store.db-shm`)
+   aside into the temp directory, then rename the extracted item into place if
+   it exists in the archive. Deliberate departure from the script, which deletes
+   first: if any rename fails, every move is undone and the restore fails with
+   `restore failed, nothing changed: <err>`, leaving `COPILOT_HOME` unchanged. If
+   the rollback itself fails, the temp directory is kept and the error names it
+   (`restore failed and rollback incomplete; old data kept in <dir>: <err>`). On
+   success the temp directory, with the old items, is removed.
 4. Print `Restored <N> session(s) from <path>`.
 
 ### 6.5 Plurals

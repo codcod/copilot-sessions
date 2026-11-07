@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -52,6 +53,14 @@ func readArchive(t *testing.T, path string) (map[string]*tar.Header, []byte) {
 // Spec §9 case 10: entries, lock dir excluded, DB snapshot includes WAL content.
 func TestCreate(t *testing.T) {
 	fx := testfix.Build(t)
+	// A sibling of the lock dir is archived; only the lock dir itself is excluded.
+	oldLocks := filepath.Join(fx.Home, "session-state", ".session-operation-locks-old")
+	if err := os.MkdirAll(oldLocks, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldLocks, "x"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Leave a committed row in the WAL: no checkpoint, connection held open.
 	live, err := sql.Open("sqlite", filepath.Join(fx.Home, "session-store.db"))
@@ -70,7 +79,7 @@ func TestCreate(t *testing.T) {
 	}
 
 	target := filepath.Join(fx.BackupDir, "nested", "b.tar.gz")
-	if err := Create(fx.Home, target); err != nil {
+	if err := Create(fx.Home, target, true); err != nil {
 		t.Fatal(err)
 	}
 	if fi, _ := os.Stat(target); fi.Mode().Perm() != 0o600 {
@@ -78,13 +87,13 @@ func TestCreate(t *testing.T) {
 	}
 	hdrs, dbBytes := readArchive(t, target)
 
-	for _, want := range []string{"session-state/", "session-state/.other/workspace.yaml", "session-store.db", "open-sessions-state.json", "sidebar-sessions-state/a.json"} {
+	for _, want := range []string{"session-state/", "session-state/.other/workspace.yaml", "session-state/.session-operation-locks-old/x", "session-store.db", "open-sessions-state.json", "sidebar-sessions-state/a.json"} {
 		if hdrs[want] == nil {
 			t.Errorf("missing %s", want)
 		}
 	}
 	for name := range hdrs {
-		if strings.Contains(name, ".session-operation-locks") || strings.HasSuffix(name, "-wal") || strings.HasSuffix(name, "-shm") {
+		if strings.HasPrefix(name, "session-state/.session-operation-locks/") || strings.HasSuffix(name, "-wal") || strings.HasSuffix(name, "-shm") {
 			t.Errorf("unexpected entry %s", name)
 		}
 	}
@@ -93,7 +102,7 @@ func TestCreate(t *testing.T) {
 	for _, item := range []string{"session-state", "sidebar-sessions-state", "open-sessions-state.json"} {
 		filepath.WalkDir(filepath.Join(fx.Home, item), func(p string, d fs.DirEntry, _ error) error {
 			rel, _ := filepath.Rel(fx.Home, p)
-			if strings.HasPrefix(rel, "session-state/.session-operation-locks") {
+			if rel == filepath.FromSlash("session-state/.session-operation-locks") {
 				return fs.SkipDir
 			}
 			name := filepath.ToSlash(rel)
@@ -132,7 +141,7 @@ func TestCreate(t *testing.T) {
 func TestCreateEmptyHome(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "b.tar.gz")
-	if err := Create(filepath.Join(dir, "none"), target); err != nil {
+	if err := Create(filepath.Join(dir, "none"), target, true); err != nil {
 		t.Fatal(err)
 	}
 	if hdrs, _ := readArchive(t, target); len(hdrs) != 0 {
@@ -167,11 +176,100 @@ func TestCreateGrowingFile(t *testing.T) {
 	defer func() { close(stop); <-done; f.Close() }()
 	for i := 0; i < 5; i++ {
 		target := filepath.Join(t.TempDir(), "b.tar.gz")
-		if err := Create(home, target); err != nil {
+		if err := Create(home, target, true); err != nil {
 			t.Fatalf("run %d: %v", i, err)
 		}
 		if hdrs, _ := readArchive(t, target); hdrs["session-state/s/events.jsonl"] == nil {
 			t.Fatalf("run %d: entry missing", i)
 		}
+	}
+}
+
+// A failed backup leaves neither the target nor its temp file behind.
+func TestCreateFailureLeavesNothing(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads mode-0 files")
+	}
+	home := t.TempDir()
+	p := filepath.Join(home, "session-state", "s", "events.jsonl")
+	os.MkdirAll(filepath.Dir(p), 0o755)
+	if err := os.WriteFile(p, []byte("x"), 0); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "b.tar.gz")
+	if err := Create(home, target, true); err == nil {
+		t.Fatal("want error")
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("left behind: %v", entries)
+	}
+}
+
+func TestCreateNoClobber(t *testing.T) {
+	home, dir := t.TempDir(), t.TempDir()
+	target := filepath.Join(dir, "b.tar.gz")
+	if err := os.WriteFile(target, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Create(home, target, false); err == nil || !strings.Contains(err.Error(), "backup already exists: "+target) {
+		t.Fatalf("err %v", err)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "old" {
+		t.Errorf("target changed: %q", b)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Errorf("left behind: %v", entries)
+	}
+	if err := Create(home, target, true); err != nil {
+		t.Fatal(err)
+	}
+	readArchive(t, target)
+}
+
+func TestCopyPadded(t *testing.T) {
+	for size, want := range map[int64]string{5: "abc\x00\x00", 2: "ab"} {
+		var buf strings.Builder
+		if err := copyPadded(&buf, strings.NewReader("abc"), size); err != nil || buf.String() != want {
+			t.Errorf("size %d: %q, %v", size, buf.String(), err)
+		}
+	}
+}
+
+func TestListErrors(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "f")
+	os.WriteFile(file, nil, 0o600)
+	for _, p := range []string{filepath.Join(dir, "missing"), file} {
+		if got, err := List(p); got != nil || err != nil {
+			t.Errorf("%s: %v, %v", p, got, err)
+		}
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores dir modes")
+	}
+	locked := filepath.Join(dir, "p")
+	os.Mkdir(locked, 0)
+	t.Cleanup(func() { os.Chmod(locked, 0o700) })
+	if _, err := List(filepath.Join(locked, "b")); err == nil {
+		t.Error("want EACCES")
+	}
+}
+
+// Without hard-link support the no-clobber publish falls back to O_EXCL + rename.
+func TestCreateNoHardLinks(t *testing.T) {
+	link = func(string, string) error { return &os.LinkError{Op: "link", Err: syscall.EPERM} }
+	t.Cleanup(func() { link = os.Link })
+	home, dir := t.TempDir(), t.TempDir()
+	target := filepath.Join(dir, "b.tar.gz")
+	if err := Create(home, target, false); err != nil {
+		t.Fatal(err)
+	}
+	readArchive(t, target)
+	if err := Create(home, target, false); err == nil || !strings.Contains(err.Error(), "backup already exists: "+target) {
+		t.Fatalf("err %v", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Errorf("left behind: %v", entries)
 	}
 }

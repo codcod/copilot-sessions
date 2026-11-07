@@ -50,7 +50,7 @@ func newBackup(env Env) *cobra.Command {
 				if len(args) > 0 {
 					target = filter.ExpandUser(args[0])
 				}
-				if err := createBackup(env, target, quiet); err != nil {
+				if err := createBackup(env, target, len(args) > 0, quiet); err != nil {
 					return err
 				}
 			}
@@ -125,8 +125,8 @@ func printBackups(w io.Writer, backups []string) {
 	}
 }
 
-func createBackup(env Env, target string, quiet bool) error {
-	if err := backup.Create(env.Home, target); err != nil {
+func createBackup(env Env, target string, overwrite, quiet bool) error {
+	if err := backup.Create(env.Home, target, overwrite); err != nil {
 		return err
 	}
 	if quiet {
@@ -135,7 +135,10 @@ func createBackup(env Env, target string, quiet bool) error {
 	}
 	dirs, err := session.Dirs(env.Home)
 	if err != nil {
-		return err
+		// The backup exists; report it anyway and let --keep run.
+		fmt.Fprintf(env.Stderr, "warning: %v\n", err)
+		fmt.Fprintf(env.Stdout, "Backup created: %s (%s)\n", target, session.HumanSize(fileSize(target)))
+		return nil
 	}
 	fmt.Fprintf(env.Stdout, "Backup created: %s (%s, %s)\n", target, plural(len(dirs), "session"), session.HumanSize(fileSize(target)))
 	return nil

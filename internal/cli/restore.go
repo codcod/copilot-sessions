@@ -35,6 +35,9 @@ func newRestore(env Env) *cobra.Command {
 	return cmd
 }
 
+// rename is os.Rename; tests swap it to force a failure mid-restore.
+var rename = os.Rename
+
 // runRestore follows the script's cmd_restore step by step (spec §6.4).
 func runRestore(env Env, args []string, yes bool) error {
 	source, err := restoreSource(env, args)
@@ -77,38 +80,76 @@ func runRestore(env Env, args []string, yes bool) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	keepTmp := false
+	defer func() {
+		if !keepTmp {
+			os.RemoveAll(tmp)
+		}
+	}()
 	if err := backup.Extract(source, tmp); err != nil {
 		return err
 	}
-	for _, item := range backup.Items {
-		dest := filepath.Join(env.Home, item)
-		if fi, err := os.Lstat(dest); err == nil {
-			if fi.IsDir() {
-				err = os.RemoveAll(dest)
-			} else {
-				err = os.Remove(dest)
-			}
-			if err != nil {
-				return err
-			}
-		}
-		if item == session.DBFile {
-			for _, suffix := range []string{"-wal", "-shm"} {
-				if err := os.Remove(dest + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
-					return err
-				}
-			}
-		}
-		extracted := filepath.Join(tmp, item)
-		if _, err := os.Lstat(extracted); err == nil {
-			if err := os.Rename(extracted, dest); err != nil {
-				return err
-			}
-		}
+	if keepTmp, err = swapItems(env.Home, tmp); err != nil {
+		return err
 	}
 	fmt.Fprintf(w, "Restored %s from %s\n", plural(n, "session"), source)
 	return nil
+}
+
+// swapItems moves each current item into <tmp>/old and the extracted one into home.
+// Deliberate departure from the script, which deletes before moving: on any failure
+// every move is undone, so home is left as it was; the old items go with tmp on success.
+// keepTmp reports a rollback that did not finish: tmp then holds data that must survive.
+func swapItems(home, tmp string) (keepTmp bool, err error) {
+	old := filepath.Join(tmp, "old")
+	if err := os.MkdirAll(old, 0o700); err != nil {
+		return false, err
+	}
+	type move struct{ from, to string }
+	var done []move
+	mv := func(from, to string) error {
+		if _, err := os.Lstat(from); errors.Is(err, os.ErrNotExist) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		if err := rename(from, to); err != nil {
+			return err
+		}
+		done = append(done, move{from, to})
+		return nil
+	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		for i := len(done) - 1; i >= 0; i-- {
+			if rename(done[i].to, done[i].from) != nil {
+				keepTmp = true
+			}
+		}
+		if keepTmp {
+			err = fmt.Errorf("restore failed and rollback incomplete; old data kept in %s: %w", old, err)
+		} else {
+			err = fmt.Errorf("restore failed, nothing changed: %w", err)
+		}
+	}()
+	for _, item := range backup.Items {
+		dest := filepath.Join(home, item)
+		names := []string{item}
+		if item == session.DBFile {
+			names = append(names, item+"-wal", item+"-shm")
+		}
+		for _, n := range names {
+			if err := mv(filepath.Join(home, n), filepath.Join(old, n)); err != nil {
+				return false, err
+			}
+		}
+		if err := mv(filepath.Join(tmp, item), dest); err != nil {
+			return false, err
+		}
+	}
+	return false, nil
 }
 
 // restoreSource resolves FILE, latest, or the interactive pick, as the script's pick_backup does.
