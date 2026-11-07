@@ -304,7 +304,7 @@ Checklist:
 - [ ] Summary + approval (step 9): deferred to the concluding round.
 
 
-### Rework fix record — round 1 (commit dcd9dda)
+### Rework fix record — round 1 (commit c282e79)
 
 - F1 — fixed. `Create` publishes through a new `moveNew(tmp, target)`. It tries `link` (a
   package-level `var link = os.Link` seam). If that succeeds it removes tmp. `EEXIST` is passed
@@ -313,7 +313,7 @@ Checklist:
   comment is gone now that the fallback exists. New test `TestCreateNoHardLinks` makes `link`
   fail with EPERM: the first no-clobber `Create` succeeds with a readable archive, the second
   gives `backup already exists`, and the dir holds exactly one file. The branch was rebased onto
-  `main` before the fix, so the pre-fix tip is `18ee48a` (round 1 reviewed the same code as
+  `main` before the fix, so the pre-fix tip is `27d7ebb` after the review-time rebase (round 1 reviewed the same code as
   `5ee05f1`). Acceptance re-run: gofmt 0, vet clean, `go test` green on macOS (TestParity ran),
   `just test-linux` green.
 
@@ -327,4 +327,4 @@ Checklist:
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green (macOS incl. TestParity, Linux Docker); commits 4022b52, 9b95afd on feat/CS-007-backup-robustness
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1 os.Link fails without hard-link support; decision 2 amended with user sign-off), 8 noted (F2–F9); code at 2db5ae3, 5ee05f1
 - 2026-11-07 — plan amended inline: decision 2 gains the O_EXCL+rename fallback when os.Link fails without hard-link support (review round 1 F1, user sign-off).
-- 2026-11-07 — REWORK → IN REVIEW: findings fixed: F1 (dcd9dda)
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed: F1 (dcd9dda, c282e79 after rebase)
