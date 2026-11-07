@@ -375,3 +375,4 @@ cost: estimated M, actual L — three review rounds and two rework rounds on the
 - 2026-11-07 — IN REVIEW → REWORK: review round 2: R1 blocking; R2, R3 fixed inline; R4, R5 noted
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed (round 2)
 - 2026-11-07 — IN REVIEW → DONE: review round 3 clean: F1–F3 fixed (R1); fixed inline F5, R2, R3, R6, R8; folded F4 -> CS-007; noted F6–F12, R4, R5, R7
+- 2026-11-07 — published: branch feat/CS-004-restore-command pushed (1 commit, 8ede327, history kept), PR #5 https://github.com/codcod/copilot-sessions/pull/5 opened against main; awaiting human merge
