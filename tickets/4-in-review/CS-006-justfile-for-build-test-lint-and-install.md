@@ -250,3 +250,4 @@ just clean && test ! -e copilot-sessions
 - 2026-11-07 — TO DO → READY: plan complete
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
 - 2026-11-07 — plan amended inline: acceptance keeps GOCACHE/GOMODCACHE pointed at the real caches under the throwaway HOME (else a cold, networked rebuild leaves read-only module files); vim modeline fixed to `set ft=make et ai:` (applicability gate, non-blocking)
+- 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
