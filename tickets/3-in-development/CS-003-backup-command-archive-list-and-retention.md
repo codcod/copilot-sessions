@@ -71,9 +71,8 @@ nothing. Merging is always the human's.
 
 - CS-001 is in `6-done/` and merged to `main` (PR #1, `533c9c0`). Holds as of 2026-11-07.
 - The working tree is clean, and `go test ./...` is green on `main`.
-- Check whether CS-002 is merged: `test -f internal/cli/confirm.go`. If it is, reuse
-  `confirm`, `readLine` and `plural`. If not, add them exactly as CS-002 decisions 4–5 and
-  Task 3 step 3 specify, so the two branches converge.
+- CS-002 merged (PR #3, `309e7ee`): reuse `confirm`/`readLine` (`internal/cli/confirm.go`)
+  and `plural` (`internal/cli/cli.go`).
 
 ### Confirmed design decisions (do not deviate without asking)
 
@@ -130,12 +129,11 @@ nothing. Merging is always the human's.
 #### Task 1 — exports
 
 Apply decision 10's renames in `internal/session/session.go`, `internal/filter/filter.go`
-and their callers and tests.
+and their callers (session.go, `internal/session/delete.go`, filter.go) and tests.
 
 #### Task 2 — `internal/backup/backup.go`
 
-- `var Items = []string{session.StateDir, session.DBFile, session.OpenState, "sidebar-sessions-state"}`.
-  If CS-002 already added `session.SidebarDir`, use that instead of the literal.
+- `var Items = []string{session.StateDir, session.DBFile, session.OpenState, session.SidebarDir}`.
 - `func Create(home, target string) error` implements decisions 3–5.
 - `func List(dir string) ([]string, error)` implements decision 6 and returns full paths.
 - `func Created(path string) time.Time` implements decision 7.
@@ -169,10 +167,11 @@ Create `internal/backup/backup_test.go` and `internal/cli/backup_test.go` (spec 
   every fixture session, `session-store.db`, `open-sessions-state.json` and
   `sidebar-sessions-state/a.json`. It also contains `session-state/.other/workspace.yaml`:
   only the lock dir is excluded. It has no `.session-operation-locks` entry and no `-wal` or
-  `-shm` entry. Each header's mode and mtime equal the source file's. The archive file
+  `-shm` entry. Each header's mode and mtime equal the source file's (excluding `session-store.db`, which
+  is the snapshot; compare mtime with `src.ModTime().Round(time.Second)`). The archive file
   mode is `0600`.
-- **WAL snapshot.** Before the backup, open the fixture DB in the test, run
-  `PRAGMA wal_autocheckpoint=0`, insert a `sessions` row, and keep that connection open.
+- **WAL snapshot.** Before the backup, open the fixture DB in the test with
+  `db.SetMaxOpenConns(1)` (the pragma is per connection), run `PRAGMA wal_autocheckpoint=0`, insert a `sessions` row, and keep that connection open.
   Assert `session-store.db-wal` has a non-zero size, so the test proves something. Run the
   backup, extract `session-store.db` from the archive to a temp file, and query the new row:
   it must be found.
@@ -239,3 +238,5 @@ The README is unchanged here; CS-005 writes the usage section. No changelog.
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.3 (Go rewrite of copilot-sessions)
 - 2026-11-07 — TO DO → READY: plan complete
+- 2026-11-07 — plan amended inline: applicability gate (independent sub-agent, no blocking findings) — CS-002 helpers and `session.SidebarDir` now exist, so the fallback/conditional is dropped; Task 1 lists the `delete.go` caller; Task 4 excludes the snapshot DB from the mode/mtime check, rounds mtime to the second, and pins the WAL test to one connection.
+- 2026-11-07 — READY → IN DEVELOPMENT: picked up
