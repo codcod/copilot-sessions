@@ -127,9 +127,10 @@ nothing. Merging is always the human's.
      by `archive/tar` itself.
 5. **Modes follow Python's `filter="data"`.** `m := Mode & 0o777 &^ 0o022` drops setuid,
    setgid, sticky and group/other write. Regular files and hard links also get `m |= 0o600`,
-   and if `m&0o100 == 0` then `m &^= 0o011`. Directories are created `0o700` while
-   extracting. Their `(name, mode, mtime)` is recorded and applied after all members,
-   deepest first, as `tarfile.extractall` does. Files get `root.Chmod` and `root.Chtimes`
+   and if `m&0o100 == 0` then `m &^= 0o011`. Directories ignore the archive mode, as
+   `filter="data"` does (`mode = None` for dirs): they are created with the umask default, and
+   only their mtime is recorded and applied after all members, deepest first, as
+   `tarfile.extractall` does (amended 2026-11-07, user, review F2). Files get `root.Chmod` and `root.Chtimes`
    with the header mtime right after writing. Ownership is never changed.
 6. **A missing `COPILOT_HOME` is created (user decision 2026-11-07).** Run
    `os.MkdirAll(home, 0o700)` before `os.MkdirTemp(home, "tmp")`. This is a deliberate
@@ -307,3 +308,4 @@ cost: estimated M, actual M
 - 2026-11-07 — READY → IN DEVELOPMENT: picked up
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: F1–F3 blocking; F5 fixed inline, F4 folded into CS-007, F6–F12 noted
+- 2026-11-07 — plan amended inline: decision 5 no longer applies archive directory modes (Python `filter="data"` ignores them); user decision on review F2.
