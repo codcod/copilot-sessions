@@ -279,3 +279,4 @@ Checklist:
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-07 — IN REVIEW → DONE: review round 1: no blocking findings; 3 noted
 - 2026-11-07 — published: pushed feat/CS-006-justfile (8d52ed3) and opened PR #2 (https://github.com/codcod/copilot-sessions/pull/2); awaiting human merge
+- 2026-11-07 — merged to main (PR #2, d1336c3, https://github.com/codcod/copilot-sessions/commit/d1336c3)
