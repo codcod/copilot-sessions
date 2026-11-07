@@ -231,6 +231,10 @@ cost: estimated S, actual S
 - [ ] Impact sweep (step 8) — at conclusion
 - [ ] Summary + commit message & MR for approval (step 9) — at conclusion
 
+### Rework fix record — round 1 (commit 38c8bef)
+
+- **F1** — `completeRestore` splits `toComplete` into dir + base, globs `base*.tar.gz` in `filter.ExpandUser(dir)`, and returns `dir + name`, so `./`, `~/` and `sub/` prefixes come back as typed (`internal/cli/complete.go`). `TestCompleteRestore` gains `./x` → `./x.tar.gz`, `~/` → `~/h.tar.gz` (HOME pointed at a temp dir) and `sub/` → `sub/s.tar.gz`; the first two fail on the pre-fix code. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §8, §13 (Go rewrite of copilot-sessions)
@@ -241,3 +245,4 @@ cost: estimated S, actual S
 - 2026-11-07 — cutover on WSL: parity clean (user-reported; session count not given); Python script replaced
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: 1 blocking (F1); 4 noted (F2–F5)
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed
