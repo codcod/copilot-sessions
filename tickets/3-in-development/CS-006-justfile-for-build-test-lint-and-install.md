@@ -190,7 +190,7 @@ completion: build
 clean:
     rm -f {{bin}}
 
-# vim: set ft=make:et:ai
+# vim: set ft=make et ai:
 ```
 
 `/copilot-sessions` is already in `.gitignore`, so it needs no change.
@@ -213,7 +213,7 @@ just test                                    # exit 0
 just test-linux                              # exit 0; the ongoing/ancestor tests run (not skipped)
 just show-version                            # prints "copilot-sessions version <git describe output>"
 go version -m copilot-sessions | grep 'CGO_ENABLED=0'
-H=$(mktemp -d); HOME=$H just install completion
+H=$(mktemp -d); GOCACHE=$(go env GOCACHE) GOMODCACHE=$(go env GOMODCACHE) HOME=$H just install completion
 test -x $H/.local/bin/copilot-sessions && grep -q '#compdef copilot-sessions' $H/.zsh/completions/_copilot-sessions
 just clean && test ! -e copilot-sessions
 ```
@@ -248,3 +248,5 @@ just clean && test ! -e copilot-sessions
 
 - 2026-11-06 — created (TO DO). source: chat: user asked for a justfile modelled on codcod/jerry's justfile template
 - 2026-11-07 — TO DO → READY: plan complete
+- 2026-11-07 — READY → IN DEVELOPMENT: picked up
+- 2026-11-07 — plan amended inline: acceptance keeps GOCACHE/GOMODCACHE pointed at the real caches under the throwaway HOME (else a cold, networked rebuild leaves read-only module files); vim modeline fixed to `set ft=make et ai:` (applicability gate, non-blocking)

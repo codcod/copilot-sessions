@@ -13,10 +13,11 @@ Last updated: 2026-11-07
 
 ## IN DEVELOPMENT
 
-### copilot-sessions (0/1)
+### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
+| CS-006 | justfile for build, test, lint and install | [CS-001] |
 
 ## IN REVIEW
 
@@ -42,7 +43,6 @@ Last updated: 2026-11-07
 | CS-003 | backup command: archive, list and retention | high | medium | M | [CS-001] |  |
 | CS-004 | restore command with safe extraction and Python compatibility | high | high | M | [CS-002, CS-003] |  |
 | CS-005 | Shell completion, install and cutover from the Python script | medium | low | S | [CS-001, CS-002, CS-003, CS-004, CS-006] |  |
-| CS-006 | justfile for build, test, lint and install | medium | low | S | [CS-001] |  |
 
 ## TO DO (impact order, per child)
 
