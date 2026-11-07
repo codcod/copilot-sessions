@@ -284,6 +284,17 @@ CS-005 writes the usage section. No changelog.
 Disposition summary: 3 blocking (F1–F3, → rework); 9 non-blocking: 1 fixed inline (F5), 1 folded (F4 → CS-007), 7 noted (F6–F12), 0 new tickets.
 cost: estimated M, actual M
 
+### Rework fix record — round 1 (commit c5afa32)
+
+Diff: `git diff ad5da5b..c5afa32` (branch tip before the fix: ad5da5b).
+
+- **F1** — `internal/backup/restore.go`: a symlink target is rejected unless `filepath.IsLocal` *and* it has no `..` element. Regression case `symlink loop` (`session-state/s -> .` plus `session-state/evil -> s/s/../../x`) added to `TestRestoreRejectsUnsafeArchives`. Repro archive now fails with `symlink to … points outside the archive`.
+- **F2** — per the user's decision (decision 5 amended on `main`): directories are created with the umask default (`0o777`) and only their mtime is applied; no chmod. `TestExtractModesAndLinks` now archives `session-state` as `0o2555` and asserts it extracts owner-rwx without setgid. Repro (`0555` dirs) now restores successfully.
+- **F3** — a symlink member with no `/` in its name (a top-level item) is rejected. Hard links were left alone: they link an inode inside the tree and cannot redirect. Regression case `top symlink` added. Repro (`session-state -> config`) now fails with `top-level item is a symlink`.
+- **F5** (fixed inline) — the `ponytail:` comment in `cmd/copilot-sessions/main.go` now names the mid-replace window and points at CS-007.
+
+Acceptance re-run: gofmt 0, `go vet` clean, `go test -count=1 ./...` green on macOS (compat executed) and `just test-linux` green.
+
 **Checklist**
 
 - [x] Reviewer independence settled (step 0): delegated to an independent sub-agent (the orchestrator wrote the branch). Delegated findings discarded on re-verification: none. The delegated reviewer itself dropped four candidates (hardlink to symlink, `TypeRegA`, top-level downward symlink, gzip bomb). The orchestrator re-raised the top-level symlink as F3 from the host tool's finding: it redirects into a sibling of the restored tree.
@@ -309,3 +320,4 @@ cost: estimated M, actual M
 - 2026-11-07 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-07 — IN REVIEW → REWORK: review round 1: F1–F3 blocking; F5 fixed inline, F4 folded into CS-007, F6–F12 noted
 - 2026-11-07 — plan amended inline: decision 5 no longer applies archive directory modes (Python `filter="data"` ignores them); user decision on review F2.
+- 2026-11-07 — REWORK → IN REVIEW: findings fixed
