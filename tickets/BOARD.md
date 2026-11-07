@@ -20,11 +20,10 @@ Last updated: 2026-11-07
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-005 | Shell completion, install and cutover from the Python script | [CS-001, CS-002, CS-003, CS-004, CS-006] |
 
 ## REWORK
 
@@ -58,6 +57,7 @@ Last updated: 2026-11-07
 | CS-002 | clean command: filtered deletion of sessions, DB rows and UI state | yes — merged to main (PR #3, 309e7ee, https://github.com/codcod/copilot-sessions/commit/309e7ee) |
 | CS-003 | backup command: archive, list and retention | yes — merged to main (PR #4, 1829ffb, https://github.com/codcod/copilot-sessions/commit/1829ffb) |
 | CS-004 | restore command with safe extraction and Python compatibility | yes — merged to main (PR #5, 4fdd2df, https://github.com/codcod/copilot-sessions/commit/4fdd2df) |
+| CS-005 | Shell completion, install and cutover from the Python script | no — publish-gated |
 | CS-006 | justfile for build, test, lint and install | yes — merged to main (PR #2, d1336c3, https://github.com/codcod/copilot-sessions/commit/d1336c3) |
 
 ## DROPPED
