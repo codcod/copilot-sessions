@@ -249,7 +249,7 @@ cost: estimated S, actual S
 Disposition summary: 1 blocking (R2-F1 → rework round 2); 2 noted (R2-F2, R2-F3).
 Reviewer independence: delegated (fresh sub-agent, scoped to the fix diff); R2-F1 re-verified by hand against the generated zsh script; no delegated finding discarded.
 
-### Rework fix record — round 2 (commit SHA_PENDING)
+### Rework fix record — round 2 (commit d939307)
 
 - **R2-F1** — per amended decision 5 (user sign-off), `completeRestore` returns `tar.gz` + `ShellCompDirectiveFilterFileExt` as soon as the argument contains `/`, so the shell completes `~/`, `./` and subdirectories itself; slash-free input still gets `latest`, the backups newest first, then `*.tar.gz` in the working dir. The unreachable `ExpandUser(dir)` branch and the `"~/"` test case are gone; `TestCompleteRestore` asserts the `FilterFileExt` directive for `./x`, `/home/u/` and `sub/`. R2-F2 disappears with it (no directory goes into the glob any more). Checked end to end in a real `zsh -f` + compinit via zpty: `~/h` → `~/h.tar.gz`, `./m` → `./my.tar.gz`, `sub/` → `sub/s.tar.gz`. Acceptance re-run green on macOS and Linux (Docker), TestParity RUN/PASS.
 
