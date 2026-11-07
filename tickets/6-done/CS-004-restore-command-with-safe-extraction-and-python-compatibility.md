@@ -242,8 +242,8 @@ H=$(mktemp -d); COPILOT_HOME=$H/h COPILOT_BACKUP_DIR=$H/b ./copilot-sessions res
 ### Docs update (mandatory when user-facing)
 
 The user-facing surface is `restore --help`, with help ported from the script (Task 2).
-`development/spec.md` §6.4 gets a one-line note naming the two deliberate departures: the
-downward-only symlink rule and the created `COPILOT_HOME`. The README is unchanged here;
+`development/spec.md` §6.4 gets a one-line note naming the three deliberate departures: the
+downward-only symlink rule, no symlinked top-level item, and the created `COPILOT_HOME`. The README is unchanged here;
 CS-005 writes the usage section. No changelog.
 
 ### Finish (mandatory)
@@ -342,6 +342,24 @@ Diff: `git diff d0f6ae2..596fbee`. The in-tree rebase that follows this bookkeep
 
 Acceptance re-run: gofmt 0, `go vet` clean, `go test -count=1 ./...` green on macOS and `just test-linux` green.
 
+### Review round 3 (scoped re-review) — 2026-11-07 (branch @ 2cf64e1)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| R6 | non-blocking | stale-xref | fixed inline | The plan's Docs step still said the spec note names "two" departures. | Implementation Plan › Docs update vs `development/spec.md` §6.4 | Changed to three on `main`. |
+| R7 | non-blocking | design | noted | The top-level `root.Lstat` check ignores every error, not only not-exist; no input found that triggers it. | `internal/backup/restore.go` Items loop | Return non-`ErrNotExist` errors. |
+| R8 | non-blocking | stale-xref | fixed inline | The `Extract` doc comment omits the top-level-symlink rule this branch added. | `internal/backup/restore.go:39-42` | One clause added to the comment in the publish tidy (no behaviour change). |
+
+Disposition summary: 0 blocking; 3 non-blocking: 2 fixed inline (R6, R8), 1 noted (R7), 0 new tickets. R1 verified met: the reviewer re-ran the repro archives, plus `session-store.db/` and `Session-Store.db` variants, and a mutation test (Lstat loop removed → the four `top_*` cases fail).
+cost: estimated M, actual L — three review rounds and two rework rounds on the security-sensitive extraction.
+
+- [x] Reviewer independence (step 0): delegated independent sub-agent; no finding discarded.
+- [x] Stale-branch check (step 0a): `pickle doctor` clean.
+- [x] Implementation audit (steps 1, 2): acceptance green on macOS (compat executed) and Linux; fix diff `HEAD~1..HEAD` read.
+- [x] Correctness hunt (step 3): one pass over 8 angles on the fix diff; repros + mutation test; no correctness rows.
+- [x] Consistency (step 4): R6, R8. Docs (4a): spec note at three departures. Docs-readability (4b): conscious skip.
+- [x] Moved to `tickets/6-done/` (step 6). Step 7: spec and plan reconciled. Step 8: CS-005 (README usage) and CS-007 (F4 folded) checked; no other assumption invalidated.
+
 ## History
 
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.4, §9 cases 11-12 (Go rewrite of copilot-sessions)
@@ -356,3 +374,4 @@ Acceptance re-run: gofmt 0, `go vet` clean, `go test -count=1 ./...` green on ma
 - 2026-11-07 — plan amended inline: decision 4 adds the top-level-items-are-never-links rule (review F3/R1, R3).
 - 2026-11-07 — IN REVIEW → REWORK: review round 2: R1 blocking; R2, R3 fixed inline; R4, R5 noted
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed (round 2)
+- 2026-11-07 — IN REVIEW → DONE: review round 3 clean: F1–F3 fixed (R1); fixed inline F5, R2, R3, R6, R8; folded F4 -> CS-007; noted F6–F12, R4, R5, R7
