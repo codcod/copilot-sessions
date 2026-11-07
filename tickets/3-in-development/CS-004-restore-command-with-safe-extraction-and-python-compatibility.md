@@ -161,7 +161,7 @@ nothing. Merging is always the human's.
 
 Create `internal/cli/restore.go` with `newRestore(env Env)`: `Use: "restore [FILE|latest]"`,
 `Args: cobra.MaximumNArgs(1)`, `Short: "replace current sessions with a backup"`, and the
-`-y/--yes` flag. Port the help strings from the script (lines 715–717). Register it in
+`-y/--yes` flag. Port the help strings from the script (lines 717–719). Register it in
 `Execute`. Its run function follows decisions 1, 2, 6 and 7. The warning block is exactly:
 
 ```
@@ -270,3 +270,5 @@ CS-005 writes the usage section. No changelog.
 - 2026-11-06 — created (TO DO). source: chat: split from development/spec.md §6.4, §9 cases 11-12 (Go rewrite of copilot-sessions)
 - 2026-11-07 — TO DO → READY: plan complete
 - 2026-11-07 — impact sweep from CS-002 review: `plural` lives in `internal/cli/cli.go`, not `confirm.go`; prerequisite line corrected.
+- 2026-11-07 — applicability gate (independent sub-agent): no blocking findings. G1 (non-blocking, stale-reference): script help range was 715–717 → plan amended inline: Task 2 help-string range corrected to 717–719. G2 (non-blocking, sequencing): overlap with CS-007 F2 (partial newest archive picked by `latest`) and F8 (sort order) — noted and closed; decision 7 already leaves current data untouched on a failed extraction.
+- 2026-11-07 — READY → IN DEVELOPMENT: picked up
