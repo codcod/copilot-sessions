@@ -271,7 +271,7 @@ cost: estimated S, actual S
 - [x] Ticket moved to `6-done/`; History appended (step 6).
 - [x] Other references (step 7): no governing document was made false. AGENTS.md's Platform note still holds, since releases are Linux-only.
 - [x] Impact sweep (step 8): CS-009 and CS-010 hard-depend on CS-008 and extend `goos` and `ci.yml`. Their assumptions still hold: `.goreleaser.yaml` has a single `goos: [linux]` list with a comment that names them.
-- [ ] Summary + commit messages & MR attributes presented for approval; push pending (step 9).
+- [x] Summary + commit messages & MR attributes presented and approved (2026-11-08). Leak check clean, so the branch was pushed with its three commits kept (step 9).
 
 ## History
 
@@ -281,3 +281,4 @@ cost: estimated S, actual S
 - 2026-11-08 — plan amended inline: acceptance `docker run` gains `--platform linux/amd64` (applicability gate: dev Mac is arm64, the amd64 binary needs explicit emulation). Gate note-and-close: pickle's `resolveVersion` reads lowercase `version`; decision 7 keeps `Version`.
 - 2026-11-08 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-08 — IN REVIEW → DONE: review: no blocking findings; 4 noted (F1–F4); publish pending approval
+- 2026-11-08 — published: branch pushed, PR https://github.com/codcod/copilot-sessions/pull/8 (approved by user); merge pending (human)
