@@ -47,9 +47,7 @@ one fork per lock.
 (`development/spec.md:12`) and AGENTS.md's Platform section. Add `darwin` to `goos` in
 `.goreleaser.yaml` and a `macos-latest` job to `ci.yml`.
 
-**Out of scope.** Windows support. Process command lines need `NtQueryInformationProcess`
-or WMI; open-file rename and delete semantics put `restore`/`clean` at risk; and a Windows
-process can't see Copilot running inside WSL. Not worth it without demand.
+**Out of scope.** Windows support, filed separately as CS-010.
 
 Soft coupling: CS-008 creates `.goreleaser.yaml` and `ci.yml`. If CS-008 hasn't shipped,
 the release/CI edits wait for it, so make it a hard `depends-on` at refinement if that holds.
