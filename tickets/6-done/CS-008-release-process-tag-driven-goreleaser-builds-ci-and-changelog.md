@@ -248,7 +248,30 @@ the PR, which must be green before the review approves the merge.
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+**Review 2026-11-08** — branch `feat/CS-008-release-process` (18a25da, 56de3f6, 2a80616).
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | non-blocking | correctness | noted | On a `workflow_dispatch` re-run, the release concurrency group is keyed on the dispatching branch, not the tag. A re-run and a tag-push run of the same tag can overlap, and pending dispatches share one group. | unreproduced: needs GitHub Actions. Traced: `.github/workflows/release.yml:20` `group: release-${{ github.ref }}`; on dispatch `github.ref` = `refs/heads/main`, while checkout uses `inputs.tag` (`:30`). Copied from pickle. | `group: release-${{ inputs.tag \|\| github.ref }}`. Low likelihood for one user who releases by hand. |
+| F2 | non-blocking | design | noted | Actions are pinned to mutable tags (`checkout@v7`, `setup-go@v7`, `goreleaser-action@v7.3.0`), not SHAs, under a `contents: write` token; `version: '~> v2'` floats the binary. | `release.yml:27,32,36`; `ci.yml:19,20,40`. CS-008 decision 4 chose the exact tag pin. | SHA-pinning would need sign-off against decision 4. |
+| F3 | non-blocking | test-gap | noted | `TestResolveVersion` never reaches the build-info fallback: in a test binary `Main.Version` is `(devel)`, so `dev` stays `dev`. | `cmd/copilot-sessions/main_test.go:8`; `main.go` `resolveVersion`. Plan Task 4 prescribed this test. Fallback verified by hand: plain `go build` prints `v0.0.0-20261108…-ca6ac0c2294d+dirty`. | An injectable build-info reader would cover it. |
+| F4 | non-blocking | other | noted | A plain `go build`/`go run` with no ldflags now reports Go's VCS pseudo-version instead of `dev`. This is harmless and isn't documented. | `go version -m ./copilot-sessions` → `v0.0.0-…`; RELEASING.md *Versions* covers only goreleaser and `go install`. | A one-line note in RELEASING.md if it ever confuses anyone. |
+
+Disposition summary: 4 noted (F1–F4); 0 fixed inline, 0 folded, 0 new tickets. No blocking findings.
+cost: estimated S, actual S
+
+- [x] Reviewer independence settled (step 0): delegated. The author ran this session, so a fresh independent reviewer ran steps 1–4a. No delegated finding was discarded; F1–F4 were each re-verified by the orchestrator.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` warned of a stale ticket copy, so the branch was rebased onto main; after that, 0 errors and 0 warnings.
+- [x] Implementation audit (steps 1, 2): ticket read from `main`; `depends-on: []`. Tasks 1–6 and decisions 1–9 were all met. The acceptance test was re-run verbatim and is green. Open gate: the first CI run on the PR must be green before merge, which needs the push.
+- [x] Correctness hunt (step 3): host tool path attempted. `/code-review low main...feat/CS-008-release-process` returned no output, so it was treated as inconclusive. Fell back to the angle hunt: one pass over all 8 angles by the delegated reviewer, no sub-agents. Angle 7 ran within that pass and was clean (`pull_request` not `_target`, CI token read-only, `inputs.tag` never interpolated into `run:`). F1 is unreproduced, with its traced path.
+- [x] Consistency audit (step 4): project-wide search found no contradictions. CS-006's "no goreleaser" prose is historical and left alone.
+- [x] Documentation audit (step 4a): coverage met (README Install/Development, RELEASING, CHANGELOG). Whole-tree sweep clean. No docs build is configured, so n/a.
+- [x] Docs-readability pass (step 4b): conscious skip. No dedicated reviewer is configured, and the changed prose is short.
+- [x] Findings recorded with severity, class and disposition; summary and cost lines present (step 5).
+- [x] Ticket moved to `6-done/`; History appended (step 6).
+- [x] Other references (step 7): no governing document was made false. AGENTS.md's Platform note still holds, since releases are Linux-only.
+- [x] Impact sweep (step 8): CS-009 and CS-010 hard-depend on CS-008 and extend `goos` and `ci.yml`. Their assumptions still hold: `.goreleaser.yaml` has a single `goos: [linux]` list with a comment that names them.
+- [ ] Summary + commit messages & MR attributes presented for approval; push pending (step 9).
 
 ## History
 
@@ -257,3 +280,4 @@ the PR, which must be green before the review approves the merge.
 - 2026-11-08 — READY → IN DEVELOPMENT: picked up
 - 2026-11-08 — plan amended inline: acceptance `docker run` gains `--platform linux/amd64` (applicability gate: dev Mac is arm64, the amd64 binary needs explicit emulation). Gate note-and-close: pickle's `resolveVersion` reads lowercase `version`; decision 7 keeps `Version`.
 - 2026-11-08 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-08 — IN REVIEW → DONE: review: no blocking findings; 4 noted (F1–F4); publish pending approval

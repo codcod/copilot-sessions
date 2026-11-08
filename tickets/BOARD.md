@@ -20,11 +20,10 @@ Last updated: 2026-11-08
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-008 | Release process: tag-driven goreleaser builds, CI and changelog | [] |
 
 ## REWORK
 
@@ -62,6 +61,7 @@ Last updated: 2026-11-08
 | CS-005 | Shell completion, install and cutover from the Python script | yes — merged to main (PR #7, 22e19df, https://github.com/codcod/copilot-sessions/commit/22e19df) |
 | CS-006 | justfile for build, test, lint and install | yes — merged to main (PR #2, d1336c3, https://github.com/codcod/copilot-sessions/commit/d1336c3) |
 | CS-007 | backup robustness: atomic archive, live-file races and error reporting | yes — merged to main (PR #6, e8e6b91, https://github.com/codcod/copilot-sessions/commit/e8e6b91) |
+| CS-008 | Release process: tag-driven goreleaser builds, CI and changelog | no — publish-gated |
 
 ## DROPPED
 
