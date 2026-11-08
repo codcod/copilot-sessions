@@ -62,16 +62,24 @@ only install path is `just install` from a checkout.
 - `pickle changelog check` — optional at release time; it is a pickle command and can be run
   by hand from this board, no wiring needed.
 
-**Versioning.** SemVer, first tag `v0.1.0` (the Go rewrite is feature-complete per CS-001…
-CS-007 but has had no external use). Optionally `v1.0.0` once the CS-005 cutover is
-confirmed on WSL.
+**Decided (2026-11-08, chat)**
 
-**Open questions for refinement**
+1. **Linux only.** No darwin/windows targets. Status detection reads `/proc`, so on those
+   platforms every locked session would show as `stale`. Revisit when the platform work
+   below exists.
+2. **No `pickle board audit` in CI.** It would need pickle installed on the runner, and the
+   bookkeeping is local anyway.
+3. **First tag is `v0.1.0`**, SemVer from there.
 
-1. Include `darwin/arm64` anyway (for `list`/`backup` on the Mac, accepting wrong status)?
-   Default: no.
-2. Run `pickle board audit` in CI (install pickle via its release tarball)? Default: no.
-3. First version `v0.1.0` or `v1.0.0`?
+**Out of scope: macOS / Windows support.** All the `/proc` use is in two functions in
+`internal/session/session.go`: `pidIsCopilot` (reads `cmdline`) and `ancestorsFrom` (reads
+the parent PID from `stat`). Porting means replacing those per OS (`session_linux.go` /
+`_darwin.go` / `_windows.go`). On macOS, `golang.org/x/sys/unix` (already an indirect
+dependency) covers it: `SysctlKinfoProc` for the parent PID, `SysctlRaw("kern.procargs2")`
+for the command line. Windows is harder: Toolhelp32 gives the parent PID and exe name but
+not the command line, and the lock layout and rename-while-open behaviour of `restore` are
+unverified there. If this is picked up it becomes its own ticket, and darwin/windows join
+`goos` in `.goreleaser.yaml`.
 
 Soft coupling: CS-005 (install/cutover) — README's *Install* section gains a "from a
 release" path beside `just install`.
