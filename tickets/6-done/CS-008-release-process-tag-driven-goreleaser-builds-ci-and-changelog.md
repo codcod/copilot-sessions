@@ -256,6 +256,7 @@ the PR, which must be green before the review approves the merge.
 | F2 | non-blocking | design | noted | Actions are pinned to mutable tags (`checkout@v7`, `setup-go@v7`, `goreleaser-action@v7.3.0`), not SHAs, under a `contents: write` token; `version: '~> v2'` floats the binary. | `release.yml:27,32,36`; `ci.yml:19,20,40`. CS-008 decision 4 chose the exact tag pin. | SHA-pinning would need sign-off against decision 4. |
 | F3 | non-blocking | test-gap | noted | `TestResolveVersion` never reaches the build-info fallback: in a test binary `Main.Version` is `(devel)`, so `dev` stays `dev`. | `cmd/copilot-sessions/main_test.go:8`; `main.go` `resolveVersion`. Plan Task 4 prescribed this test. Fallback verified by hand: plain `go build` prints `v0.0.0-20261108…-ca6ac0c2294d+dirty`. | An injectable build-info reader would cover it. |
 | F4 | non-blocking | other | noted | A plain `go build`/`go run` with no ldflags now reports Go's VCS pseudo-version instead of `dev`. This is harmless and isn't documented. | `go version -m ./copilot-sessions` → `v0.0.0-…`; RELEASING.md *Versions* covers only goreleaser and `go install`. | A one-line note in RELEASING.md if it ever confuses anyone. |
+| F5 | blocking | correctness | — | PR #8's first CI run failed. On the `ubuntu-latest` (26.04) runner, `sleep` is the multicall uutils binary, so the test helper's renamed copy `copilot-test` exits at once and every "ongoing" test reads `stale`. Found after the move to `6-done/`; with the user's approval it was fixed on this branch instead of the §6c new ticket. | CI run 42471500012: `TestLoadFixture`, `TestLoadOngoingLinux`, `TestListTable` and `TestListJSON` failed. Reproduced in `ubuntu:26.04`: the copy dies within 0.5s and exits 0. | Fixed in 37b86de: the helper copies `sleep` as `<tmp>/copilot-test/sleep`. Green in `ubuntu:26.04` and in `just test-linux`. |
 
 Disposition summary: 4 noted (F1–F4); 0 fixed inline, 0 folded, 0 new tickets. No blocking findings.
 cost: estimated S, actual S
@@ -282,3 +283,4 @@ cost: estimated S, actual S
 - 2026-11-08 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-08 — IN REVIEW → DONE: review: no blocking findings; 4 noted (F1–F4); publish pending approval
 - 2026-11-08 — published: branch pushed, PR https://github.com/codcod/copilot-sessions/pull/8 (approved by user); merge pending (human)
+- 2026-11-08 — post-done fix (user approved, instead of a §6c ticket): F5, CI-only test-helper failure on Ubuntu 26.04 multicall coreutils; 37b86de pushed to PR #8
