@@ -46,6 +46,7 @@ Last updated: 2026-11-08
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
 | CS-008 | Release process: tag-driven goreleaser builds, CI and changelog | medium | low | S | [] |  |
+| CS-009 | macOS support: native process detection for ongoing/stale status | low | medium | M | [] |  |
 
 ## DONE
 
