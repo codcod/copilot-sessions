@@ -210,7 +210,7 @@ ls dist/*.tar.gz dist/checksums.txt
 #   -> copilot-sessions_<v>-snapshot_linux_amd64.tar.gz, …_linux_arm64.tar.gz, checksums.txt
 #      and no darwin/windows archives
 tar tzf dist/copilot-sessions_*_linux_amd64.tar.gz | grep -x copilot-sessions
-docker run --rm -v "$PWD/dist":/d alpine sh -c \
+docker run --rm --platform linux/amd64 -v "$PWD/dist":/d alpine sh -c \
   '/d/copilot-sessions_linux_amd64_v1/copilot-sessions --version'
 #   -> prints the snapshot version (not "dev"); static binary runs on musl
 (cd dist && shasum -a 256 -c checksums.txt)   # all OK
@@ -254,3 +254,5 @@ the PR, which must be green before the review approves the merge.
 
 - 2026-11-08 — created (TO DO). source: chat: design a release process for this project modelled on pickle's
 - 2026-11-08 — TO DO → READY: plan complete
+- 2026-11-08 — READY → IN DEVELOPMENT: picked up
+- 2026-11-08 — plan amended inline: acceptance `docker run` gains `--platform linux/amd64` (applicability gate: dev Mac is arm64, the amd64 binary needs explicit emulation). Gate note-and-close: pickle's `resolveVersion` reads lowercase `version`; decision 7 keeps `Version`.
