@@ -8,6 +8,19 @@ or `closed`. It is a Go rewrite of a Python script, specified in
 
 ## Install
 
+From a release: download `copilot-sessions_<ver>_linux_<arch>.tar.gz` (`amd64` or `arm64`)
+and `checksums.txt` from [GitHub Releases](https://github.com/codcod/copilot-sessions/releases),
+then verify and unpack into `~/.local/bin`:
+
+```
+sha256sum --ignore-missing -c checksums.txt
+tar xzf copilot-sessions_<ver>_linux_<arch>.tar.gz -C ~/.local/bin copilot-sessions
+```
+
+Or with Go: `go install github.com/codcod/copilot-sessions/cmd/copilot-sessions@latest`.
+
+From a checkout:
+
 ```
 just install      # builds and installs ~/.local/bin/copilot-sessions (replaces the Python script)
 just completion   # writes the zsh completion to ~/.zsh/completions/_copilot-sessions
@@ -52,3 +65,5 @@ just test-linux
 It runs only when `python3` 3.12 or newer is on `PATH`, so it skips in `just test-linux`.
 
 See the Platform note in [`AGENTS.md`](AGENTS.md) for what must be validated on Linux.
+
+Releases are tag-driven; see [`RELEASING.md`](RELEASING.md).

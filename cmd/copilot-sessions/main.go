@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 
 	"github.com/codcod/copilot-sessions/internal/cli"
 )
@@ -25,5 +26,20 @@ func main() {
 		fmt.Println("\nAborted.")
 		os.Exit(130)
 	}()
-	os.Exit(cli.Execute(cli.DefaultEnv(), os.Args[1:], Version))
+	os.Exit(cli.Execute(cli.DefaultEnv(), os.Args[1:], resolveVersion()))
+}
+
+// resolveVersion keeps the ldflags-stamped Version (goreleaser, `just build`). A
+// `go install …@vX.Y.Z` build runs no ldflags, so it falls back to the module version
+// in the build info; "(devel)" and "" are discarded in favour of the default "dev".
+func resolveVersion() string {
+	if Version != "" && Version != "dev" {
+		return Version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if v := info.Main.Version; v != "" && v != "(devel)" {
+			return v
+		}
+	}
+	return Version
 }

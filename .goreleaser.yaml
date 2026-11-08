@@ -1,0 +1,55 @@
+# goreleaser configuration for copilot-sessions. Validate with `just dist-check`;
+# build a local, unpublished snapshot with `just dist-snapshot`.
+# Real releases are cut by pushing a `vX.Y.Z` tag (see RELEASING.md).
+version: 2
+
+project_name: copilot-sessions
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: copilot-sessions
+    main: ./cmd/copilot-sessions
+    binary: copilot-sessions
+    env:
+      - CGO_ENABLED=0
+    # Linux only: status detection reads /proc (darwin: CS-009, windows: CS-010).
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+
+archives:
+  - id: copilot-sessions
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+# Pinned: goreleaser otherwise prefers GitLab whenever GITLAB_TOKEN is set.
+release:
+  github:
+    owner: codcod
+    name: copilot-sessions
+  draft: false
+  prerelease: auto
+  # Overwrite existing artifacts on a re-run instead of failing with 422 already_exists.
+  mode: replace
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
