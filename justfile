@@ -46,6 +46,16 @@ fmt:
 show-version: build
     ./{{bin}} --version
 
+# Validate .goreleaser.yaml (GITLAB_TOKEN unset so goreleaser cannot pick GitLab)
+[group('release')]
+dist-check:
+    env -u GITLAB_TOKEN -u GITLAB_PERSONAL_ACCESS_TOKEN goreleaser check
+
+# Build an unpublished snapshot into dist/ (GITLAB_TOKEN unset so goreleaser cannot pick GitLab)
+[group('release')]
+dist-snapshot:
+    env -u GITLAB_TOKEN -u GITLAB_PERSONAL_ACCESS_TOKEN goreleaser release --snapshot --clean
+
 # Install the binary to ~/.local/bin (replaces the Python script)
 [group('lifecycle')]
 install: build
