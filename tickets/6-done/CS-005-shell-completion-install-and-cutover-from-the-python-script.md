@@ -299,3 +299,4 @@ Reviewer independence: delegated (fresh sub-agent, scoped to 64a23e7); R3-F1 ver
 - 2026-11-07 — REWORK → IN REVIEW: findings fixed
 - 2026-11-07 — plan amended inline: decisions 2 and 5 name `NoFileComp|KeepOrder` for ID and slash-free `restore` completion, matching the R3-F1 fix (R4-F1)
 - 2026-11-07 — IN REVIEW → DONE: re-review round 4: 0 blocking; 1 fixed inline, 1 noted
+- 2026-11-08 — merged to main (PR #7, 22e19df, https://github.com/codcod/copilot-sessions/commit/22e19df)
