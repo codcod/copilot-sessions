@@ -36,9 +36,10 @@ only install path is `just install` from a checkout.
 - **`release.yml`** on `push: tags: v*` plus `workflow_dispatch` with a `tag` input (re-run
   an existing tag); `permissions: contents: write`; `concurrency` with
   `cancel-in-progress: false`; checkout `fetch-depth: 0`; setup-go from `go.mod`;
-  `goreleaser-action` `version: '~> v2'`; only `GITHUB_TOKEN` — no extra secrets.
+  `goreleaser/goreleaser-action@v7.3.0` (latest, 2026-10-12) with `version: '~> v2'`; only
+  `GITHUB_TOKEN`, no extra secrets.
 - **`ci.yml`** on push to `main` and PRs: vet, gofmt, `go test ./...`, build, plus a
-  `goreleaser check` job (exit 0 only — no deprecated `brews` pipe here, so no `|| [ $? -eq 2 ]`). The ubuntu runner runs the `/proc` tests natively, which is the
+  `goreleaser check` job on the same `goreleaser-action@v7.3.0` with `install-only: true` (exit 0 only — no deprecated `brews` pipe here, so no `|| [ $? -eq 2 ]`). The ubuntu runner runs the `/proc` tests natively, which is the
   CI-side counterpart of `just test-linux`.
 - **`CHANGELOG.md`** in Keep a Changelog form with `[Unreleased]`, retitled at release time
   and committed before the tag, so the tag contains it.
@@ -70,6 +71,8 @@ only install path is `just install` from a checkout.
 2. **No `pickle board audit` in CI.** It would need pickle installed on the runner, and the
    bookkeeping is local anyway.
 3. **First tag is `v0.1.0`**, SemVer from there.
+4. **Pin `goreleaser/goreleaser-action@v7.3.0`** in both workflows, rather than pickle's
+   floating `@v7`. The pin is exact, so an upgrade is a deliberate edit.
 
 **Out of scope: macOS / Windows support.** All the `/proc` use is in two functions in
 `internal/session/session.go`: `pidIsCopilot` (reads `cmdline`) and `ancestorsFrom` (reads
