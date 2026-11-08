@@ -284,3 +284,4 @@ cost: estimated S, actual S
 - 2026-11-08 — IN REVIEW → DONE: review: no blocking findings; 4 noted (F1–F4); publish pending approval
 - 2026-11-08 — published: branch pushed, PR https://github.com/codcod/copilot-sessions/pull/8 (approved by user); merge pending (human)
 - 2026-11-08 — post-done fix (user approved, instead of a §6c ticket): F5, CI-only test-helper failure on Ubuntu 26.04 multicall coreutils; 37b86de pushed to PR #8
+- 2026-11-08 — merged to main (PR #8, 5c4fdfe, https://github.com/codcod/copilot-sessions/commit/5c4fdfe)
