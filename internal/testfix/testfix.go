@@ -90,7 +90,9 @@ func Build(t testing.TB) *Fixture {
 	return fx
 }
 
-// startCopilotHelper runs a copy of sleep named copilot-test and returns its PID.
+// startCopilotHelper runs a copy of sleep from a directory named copilot-test, so its
+// cmdline contains "copilot", and returns its PID. The copy keeps the name sleep because a
+// multicall coreutils (uutils, Ubuntu 26.04+) picks the applet from argv[0]'s basename.
 func startCopilotHelper(t testing.TB, dir string) int {
 	src, err := exec.LookPath("sleep")
 	if err != nil {
@@ -100,7 +102,10 @@ func startCopilotHelper(t testing.TB, dir string) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bin := filepath.Join(dir, "copilot-test")
+	bin := filepath.Join(dir, "copilot-test", "sleep")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(bin, data, 0o755); err != nil {
 		t.Fatal(err)
 	}
