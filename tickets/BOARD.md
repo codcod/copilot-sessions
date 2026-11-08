@@ -13,18 +13,18 @@ Last updated: 2026-11-08
 
 ## IN DEVELOPMENT
 
+### copilot-sessions (0/1)
+
+| id | title | depends-on |
+|---|---|---|
+
+## IN REVIEW
+
 ### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
 | CS-008 | Release process: tag-driven goreleaser builds, CI and changelog | [] |
-
-## IN REVIEW
-
-### copilot-sessions (0/1)
-
-| id | title | depends-on |
-|---|---|---|
 
 ## REWORK
 

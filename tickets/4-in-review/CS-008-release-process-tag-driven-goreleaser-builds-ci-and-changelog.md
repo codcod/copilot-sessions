@@ -256,3 +256,4 @@ the PR, which must be green before the review approves the merge.
 - 2026-11-08 — TO DO → READY: plan complete
 - 2026-11-08 — READY → IN DEVELOPMENT: picked up
 - 2026-11-08 — plan amended inline: acceptance `docker run` gains `--platform linux/amd64` (applicability gate: dev Mac is arm64, the amd64 binary needs explicit emulation). Gate note-and-close: pickle's `resolveVersion` reads lowercase `version`; decision 7 keeps `Version`.
+- 2026-11-08 — IN DEVELOPMENT → IN REVIEW: acceptance green
