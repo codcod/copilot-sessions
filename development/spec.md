@@ -145,7 +145,7 @@ All filters combine with **AND**, including ID prefixes.
 |------|---------|
 | `ID...` (positional) | full ID or unique prefix |
 | `-u, --until DATE` | local date of `updated` ÔëĄ DATE |
-| `-S, --since DATE` | local date of `updated` Ôëą DATE |
+| `--since DATE` | local date of `updated` Ôëą DATE |
 | `-s, --status LIST` | comma-separated subset of `ongoing,stale,closed` |
 | `-c, --cwd PATH` | `cwd` equals PATH or is below it. Expand `~`, make the path absolute, clean it. `/a/b` matches `/a/b` and `/a/b/c`, not `/a/bc`. |
 | `-g, --grep TEXT` | `name` contains TEXT, case-insensitive |
@@ -163,13 +163,27 @@ Invalid `--status` value is a usage error (exit 2):
 
 ## 6. Commands
 
-Global: `-h/--help`. Errors go to stderr as `error: <message>`, with exit
-code 1. Usage errors use exit code 2. Ctrl-C prints `\nAborted.` and exits
-with 130.
+Global: `-h/--help`. A bare `copilot-sessions` prints the root help to stdout
+and exits 0. Errors go to stderr as `error: <message>`, with exit code 1.
+Usage errors use exit code 2: bad flag values, unknown flags, wrong argument
+counts, the flag-combination checks under each command's **Validation**, and
+unknown commands (Cobra's message, with `Did you mean this?` suggestions).
+`help <unknown>` is Cobra's: `Unknown help topic` and the root usage, exit 0.
+Ctrl-C prints `\nAborted.` to stderr and exits with 130.
+
+**Streams.** stdout carries results only; stderr carries prompts and notes:
+every `[y/N]` prompt, `Restore which backup? [1] ` and the backup table before
+it, restore's `WARNING:` block, `Backups to remove …` and its table, `clean
+-q`'s summary line before its prompt, the
+`Skipped …` notes, `Dry run: nothing deleted.` and `Aborted.`.
+
+**`-q/--quiet`** prints only machine-usable results, one per line, and nothing
+else on stdout (`list`: IDs; `clean`: the deleted IDs; `backup`: the created
+path). Notes and prompts still appear on stderr.
 
 **Confirmation helper.** If `--yes` is set, continue. If stdin is not a TTY,
 fail with `confirmation required; rerun with --yes`. Otherwise prompt
-`<question> [y/N] ` and accept only `y` or `yes` (case-insensitive).
+`<question> [y/N] ` (stderr) and accept only `y` or `yes` (case-insensitive).
 
 ### 6.1 `list` (alias `ls`)
 
@@ -201,8 +215,8 @@ Sort by `updated` ascending; unknown `updated` sorts first.
 **`-q`:** print only IDs, one per line, sorted the same way. Do not compute sizes.
 
 **`--json`:** print a JSON array with 2-space indent, sorted the same way.
-`--json` takes precedence over `-q`. With `-q`, `size` is `null` and sizes are
-not computed; the completion uses this for speed.
+Sizes are always computed. `--json` with `-q` is a usage error (exit 2):
+`--json cannot be combined with --quiet`.
 
 ```json
 {
@@ -239,9 +253,9 @@ copilot-sessions clean -a|--all            [--include-ongoing] [-n] [-y] [-q]
 | `--include-ongoing` | also delete ongoing sessions |
 | `-n, --dry-run` | show the selection, delete nothing |
 | `-y, --yes` | skip confirmation |
-| `-q, --quiet` | do not print the session table and do not compute sizes |
+| `-q, --quiet` | print only the IDs of the deleted sessions (with `-n`: that would be deleted); do not compute sizes |
 
-Validation (exit 1):
+Validation (usage error, exit 2):
 
 - `--all` with any ID or filter: `--all cannot be combined with IDs or filters`
 - No `--all`, no ID and no filter:
@@ -251,14 +265,17 @@ Selection and safety rules, in this order:
 
 1. Apply the filters (5.2).
 2. Always remove the **current** session from the selection. Print
-   `Skipped this session (it runs this command).`
+   `Skipped this session (it runs this command).` (stderr)
 3. Remove `ongoing` sessions unless `--include-ongoing` is set or `--status`
    contains `ongoing`. Print
-   `Skipped <N> ongoing session(s) (use --include-ongoing).` (Section 6.5
+   `Skipped <N> ongoing session(s) (use --include-ongoing).` (stderr; section 6.5
    shows the plural rule.)
-4. If nothing remains, print `No sessions match.` and exit 0.
+4. If nothing remains, print `No sessions match.` (not with `-q`) and exit 0.
 
-Output: the skip notes, then the table (not with `-q`), then:
+Output: the skip notes (stderr), then the table and the summary line. With
+`-q` neither goes to stdout; when the confirmation prompt will be shown (no
+`-y`, no `-n`, stdin is a TTY), the summary line, without its size part, goes to
+stderr before it:
 
 `<N> of <total> sessions selected (<scope>[, <size>]).`
 
@@ -273,10 +290,10 @@ joined with `; `, in this order:
 - `name contains '<text>'`
 - `empty`
 
-The size part is omitted with `-q`.
-
-- With `-n`: print `Dry run: nothing deleted.` and exit.
-- Otherwise ask `Permanently delete these sessions?`. On no, print `Aborted.`.
+- With `-n`: with `-q`, print the selected IDs; print `Dry run: nothing
+  deleted.` (stderr) and exit.
+- Otherwise ask `Permanently delete these sessions?`. On no, print `Aborted.`
+  (stderr).
 
 Deletion steps:
 
@@ -296,7 +313,7 @@ Deletion steps:
    - Write a file only if it changed. Write it atomically: write a temp file,
      keep the original file mode, rename. Use 2-space indent and a trailing
      newline. Keep all other keys. Do not escape HTML characters.
-4. Print `Deleted <N> session(s).`
+4. Print `Deleted <N> session(s).`, or with `-q` the deleted IDs, one per line.
 
 ### 6.3 `backup`
 
@@ -316,7 +333,7 @@ copilot-sessions backup -k N --no-create [-y]
 | `--json` | with `--list`: JSON output |
 | `-q, --quiet` | print only the created backup path |
 
-Validation (exit 1):
+Validation (usage error, exit 2):
 
 - `--list` with FILE, `--keep` or `--no-create`: `--list cannot be combined with FILE, --keep or --no-create`
 - `--json` without `--list`: `--json only works with --list`
@@ -347,9 +364,10 @@ backups after the first N.
 
 - If there are none: `Nothing to remove: at most <N> backups in <dir>.`
   (not shown with `-q`).
-- Otherwise print `Backups to remove (keeping the newest <N>):` and the backup
-  table (not with `-q`). Ask `Delete <N> old backup(s)?`, delete, and print
-  `Deleted <N> old backup(s).`
+- Otherwise, when the prompt will be shown (no `-y`, stdin is a TTY), print
+  `Backups to remove (keeping the newest <N>):` and the backup table to stderr.
+  Ask `Delete <N> old backup(s)?` (on no, `Aborted.` on stderr), delete, and
+  print `Deleted <N> old backup(s).` (not with `-q`).
 
 **Backup table (`--list`):**
 
@@ -388,14 +406,15 @@ copilot-sessions restore [FILE|latest] [-y]
 
 - `latest` means the newest backup in the backup dir.
 - With no argument and a TTY on stdin, print the backup table and prompt
-  `Restore which backup? [1] `. An empty answer means 1. An invalid answer
+  `Restore which backup? [1] ` (both stderr). An empty answer means 1. An invalid answer
   fails with `invalid choice '<x>'`.
 - With no argument and no TTY, fail with `no backup given; pass FILE or 'latest'`.
 - Errors: `no backups in <dir>`, `backup not found: <path>`, and
   `<path> does not look like a copilot-sessions backup` (the archive has
   neither `session-state` nor `session-store.db`).
 
-Before restoring, print this warning and ask `Continue?`:
+Before restoring, print this warning to stderr and ask `Continue?` (on no,
+`Aborted.` on stderr):
 
 ```
 WARNING: restore REPLACES all current Copilot sessions.
@@ -445,7 +464,10 @@ The root help must also mention:
   variable names
 - the three status definitions
 
-Port the per-flag help strings from the Python script.
+Port the per-flag help strings from the Python script, except `-q` (6.1–6.3).
+Every `Short` is capitalised with no full stop, as Cobra's own commands are.
+`list`, `clean`, `backup` and `restore` each have an `Example:` section drawn
+from the README *Examples*.
 
 ## 8. Shell completion
 
@@ -494,8 +516,8 @@ Required cases:
 1. DATE parsing: all formats, the month-end clamp, invalid input.
 2. Status detection: ongoing, stale and closed; hidden directories are not sessions.
 3. Each filter alone, AND combinations, and ID prefix errors (none, ambiguous).
-4. `list` output: header, row format, summary counts, `-q`, `--json`,
-   `--json -q` (size null).
+4. `list` output: header, row format, summary counts, `-q`, `--json`;
+   `--json -q` is a usage error.
 5. `clean` validation errors; `--all` vs filters.
 6. `clean` skips ongoing sessions by default and with `--status closed`, and
    includes them with `--include-ongoing` or `--status ongoing`.
@@ -546,9 +568,20 @@ never create or migrate tables.
 - Cobra adds `completion` and `help` subcommands. Usage error messages may
   follow cobra's format, but they must keep the texts from section 5 and exit
   code 2.
+- Go/Cobra conventions (CS-012):
+  - A bare `copilot-sessions` prints help and exits 0 (Python: usage error).
+  - Unknown commands get Cobra's message with `Did you mean this?`, exit 2.
+  - The flag-combination checks of `clean` and `backup` exit 2, not 1, with
+    the same messages.
+  - `Short` help strings are capitalised; each command has examples.
+  - Prompts and notes go to stderr (section 6 *Streams*); results stay on stdout.
+  - `-q` prints only IDs or paths: `clean -q` prints the deleted IDs instead of
+    the summary; `backup -q --keep` prints no rotation messages on stdout.
+  - `list --json -q` is a usage error; `--json` always computes sizes.
+  - `--since` has no `-S` shorthand.
 
-Everything else (flags, aliases, output, messages, exit codes, archive format)
-must match.
+Everything else (flags, aliases, the archive format, and message texts) must
+match.
 
 ## 12. Out of scope
 
@@ -562,8 +595,10 @@ must match.
 - `go vet ./...` and `go test ./...` pass.
 - The binary builds without CGO, unless the chosen SQLite driver needs CGO;
   if so, document why.
-- These commands produce the same output as the Python version on the same data:
-  `list`, `list --json -q`, `clean -n` with each filter, and `backup --list`.
+- These commands produce the same stdout results as the Python version on the
+  same data: `list`, `list -q`, `list --json`, `clean -n` with each filter, and
+  `backup --list`. Excluded from the comparison: the Python lines that Go prints
+  on stderr (`Skipped …`, `Dry run: nothing deleted.`).
   Sizes and times may differ only where the data changed between runs.
 - Section 9, case 12 passes.
 - A README section explains how to install the binary and generate the zsh

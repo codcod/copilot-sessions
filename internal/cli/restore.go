@@ -19,8 +19,11 @@ func newRestore(env Env) *cobra.Command {
 	var yes bool
 	cmd := &cobra.Command{
 		Use:   "restore [FILE|latest]",
-		Short: "replace current sessions with a backup",
+		Short: "Replace current sessions with a backup",
 		Long:  "Replace current sessions with a backup.\n\nFILE: backup file or 'latest' (default: pick from a list).",
+		Example: `  copilot-sessions restore latest
+  copilot-sessions restore ~/.copilot-backups/copilot-sessions-20261031-120000.tar.gz
+  copilot-sessions restore`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
 				return usageError{err}
@@ -58,7 +61,7 @@ func runRestore(env Env, args []string, yes bool) error {
 	if err != nil {
 		return err
 	}
-	w := env.Stdout
+	w := env.Stderr
 	fmt.Fprintln(w, "WARNING: restore REPLACES all current Copilot sessions.")
 	fmt.Fprintf(w, "  Backup:  %s (%s)\n", source, plural(n, "session"))
 	fmt.Fprintf(w, "  Current: %s (%s will be deleted)\n", env.Home, plural(len(current), "session"))
@@ -92,7 +95,7 @@ func runRestore(env Env, args []string, yes bool) error {
 	if keepTmp, err = swapItems(env.Home, tmp); err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "Restored %s from %s\n", plural(n, "session"), source)
+	fmt.Fprintf(env.Stdout, "Restored %s from %s\n", plural(n, "session"), source)
 	return nil
 }
 
@@ -170,8 +173,8 @@ func restoreSource(env Env, args []string) (string, error) {
 	if !env.IsTTY() {
 		return "", errors.New("no backup given; pass FILE or 'latest'")
 	}
-	printBackups(env.Stdout, backups)
-	fmt.Fprint(env.Stdout, "Restore which backup? [1] ")
+	printBackups(env.Stderr, backups)
+	fmt.Fprint(env.Stderr, "Restore which backup? [1] ")
 	choice := strings.TrimSpace(readLine(env))
 	if choice == "" {
 		choice = "1"

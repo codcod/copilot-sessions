@@ -85,11 +85,11 @@ func TestRestorePick(t *testing.T) {
 		t.Errorf("no TTY: %d %q", code, errOut)
 	}
 	out, errOut, code := runIn(fx, nil, "\ny\n", true, "restore")
-	if code != 0 || !strings.Contains(out, "Restore which backup? [1] WARNING") || !strings.HasSuffix(out, "Restored 6 sessions from "+newest+"\n") {
+	if code != 0 || !strings.Contains(errOut, "Restore which backup? [1] WARNING") || out != "Restored 6 sessions from "+newest+"\n" {
 		t.Errorf("pick 1: %d %s\n%s", code, errOut, out)
 	}
 	for _, bad := range []string{"9", "0", "x", "+1"} {
-		if _, errOut, code := runIn(fx, nil, bad+"\n", true, "restore"); code != 1 || errOut != "error: invalid choice '"+bad+"'\n" {
+		if _, errOut, code := runIn(fx, nil, bad+"\n", true, "restore"); code != 1 || !strings.HasSuffix(errOut, "Restore which backup? [1] error: invalid choice '"+bad+"'\n") {
 			t.Errorf("pick %s: %d %q", bad, code, errOut)
 		}
 	}
@@ -109,14 +109,14 @@ func TestRestoreErrors(t *testing.T) {
 	}
 	file := filepath.Join(t.TempDir(), "b.tar.gz")
 	mustRun(t, fx, "backup", file)
-	out, _, code := runIn(fx, nil, "n\n", true, "restore", file)
+	out, errOut, code := runIn(fx, nil, "n\n", true, "restore", file)
 	want := "WARNING: restore REPLACES all current Copilot sessions.\n" +
 		"  Backup:  " + file + " (6 sessions)\n" +
 		"  Current: " + fx.Home + " (5 sessions will be deleted)\n" +
 		"  Close all running Copilot CLI sessions first; they may overwrite restored data.\n" +
 		"Continue? [y/N] Aborted.\n"
-	if code != 0 || out != want {
-		t.Errorf("abort: %d\ngot:\n%s\nwant:\n%s", code, out, want)
+	if code != 0 || out != "" || errOut != want {
+		t.Errorf("abort: %d %q\ngot:\n%s\nwant:\n%s", code, out, errOut, want)
 	}
 	if got := snapshot(t, fx); got != before {
 		t.Errorf("changed:\n%s\nwant:\n%s", got, before)
@@ -254,7 +254,7 @@ func TestRestoreRollback(t *testing.T) {
 		_, errOut, code := run(fx, nil, "restore", file, "-y")
 		rename = os.Rename
 		if !rollbackFails {
-			if code != 1 || errOut != "error: restore failed, nothing changed: boom\n" {
+			if code != 1 || !strings.HasSuffix(errOut, "\nerror: restore failed, nothing changed: boom\n") {
 				t.Fatalf("exit %d: %q", code, errOut)
 			}
 			if got := tree(t, fx.Home); got != before {
@@ -263,7 +263,7 @@ func TestRestoreRollback(t *testing.T) {
 			continue
 		}
 		old, _ := filepath.Glob(filepath.Join(fx.Home, "tmp*", "old"))
-		if code != 1 || len(old) != 1 || errOut != "error: restore failed and rollback incomplete; old data kept in "+old[0]+": boom\n" {
+		if code != 1 || len(old) != 1 || !strings.HasSuffix(errOut, "\nerror: restore failed and rollback incomplete; old data kept in "+old[0]+": boom\n") {
 			t.Fatalf("exit %d: %q, old %v", code, errOut, old)
 		}
 		if !exists(filepath.Join(old[0], "sidebar-sessions-state")) {

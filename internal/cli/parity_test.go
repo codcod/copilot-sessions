@@ -14,8 +14,8 @@ import (
 	"github.com/codcod/copilot-sessions/internal/testfix"
 )
 
-// TestParity compares list and clean -n output with the Python reference script on the same fixture.
-// It skips unless python3 is on PATH.
+// TestParity compares list and clean -n stdout results with the Python reference script on
+// the same fixture (spec §13). It skips unless python3 is on PATH.
 func TestParity(t *testing.T) {
 	fx := testfix.Build(t)
 	py := pythonRunner(t, fx)
@@ -39,7 +39,7 @@ func TestParity(t *testing.T) {
 		{"--cwd", "/home/u/proj"},
 		{"--grep", "SESSION"},
 		{"--empty"},
-		{"-s", "closed", "-c", "/home/u", "-S", "2026-10-02"},
+		{"-s", "closed", "-c", "/home/u", "--since", "2026-10-02"},
 		{"--grep", "no-such-name"},
 	}
 	for _, f := range filters {
@@ -51,12 +51,12 @@ func TestParity(t *testing.T) {
 		if f == nil {
 			cargs = append(cargs, "--all")
 		}
-		if got, want := withoutSize(goRun(cargs...)), withoutSize(py(cargs...)); got != want {
+		if got, want := withoutSize(goRun(cargs...)), withoutSize(withoutNotes(py(cargs...))); got != want {
 			t.Errorf("%v:\ngo:\n%s\npython:\n%s", cargs, got, want)
 		}
-		args = append(args, "-q")
-		if got, want := goRun(args...), py(args...); got != want {
-			t.Errorf("%v:\ngo:\n%s\npython:\n%s", args, got, want)
+		qargs := append(args[:len(args):len(args)], "-q")
+		if got, want := goRun(qargs...), py(qargs...); got != want {
+			t.Errorf("%v:\ngo:\n%s\npython:\n%s", qargs, got, want)
 		}
 		args = append(args, "--json")
 		if got, want := normJSON(t, goRun(args...)), normJSON(t, py(args...)); !reflect.DeepEqual(got, want) {
@@ -102,6 +102,17 @@ func pythonRunner(t *testing.T, fx *testfix.Fixture) func(args ...string) string
 		}
 		return string(out)
 	}
+}
+
+// withoutNotes drops the Python lines that Go prints on stderr (CS-012).
+func withoutNotes(out string) string {
+	var keep []string
+	for _, l := range strings.SplitAfter(out, "\n") {
+		if !strings.HasPrefix(l, "Skipped ") && !strings.HasPrefix(l, "Dry run: ") {
+			keep = append(keep, l)
+		}
+	}
+	return strings.Join(keep, "")
 }
 
 // withoutSize drops the SIZE column and the summary's total size.

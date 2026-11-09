@@ -31,6 +31,8 @@ copilot-sessions restore latest       # replace current sessions with the newest
 Backups go to `COPILOT_BACKUP_DIR` (default `~/.copilot-backups`). Run
 `copilot-sessions <command> --help` for the filters and flags.
 
+For scripts, `-q` prints only IDs or paths on stdout; prompts and notes go to stderr.
+
 Shell completion: `copilot-sessions completion bash|zsh|fish`.
 
 ## Examples

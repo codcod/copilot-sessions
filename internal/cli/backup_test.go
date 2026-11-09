@@ -48,6 +48,13 @@ func TestBackupCreate(t *testing.T) {
 	if out, _, code := run(fx, nil, "backup", "-q", file); code != 0 || out != file+"\n" || !exists(file) {
 		t.Errorf("quiet: %d %q", code, out)
 	}
+	// -q with rotation: stdout is the path only.
+	os.Remove(target)
+	seedBackups(t, fx.BackupDir, false)
+	out, errOut, code = run(fx, nil, "backup", "-q", "--keep", "1", "-y")
+	if code != 0 || out != target+"\n" || errOut != "" {
+		t.Errorf("quiet keep: %d %q %q", code, out, errOut)
+	}
 }
 
 func TestBackupRetention(t *testing.T) {
@@ -63,14 +70,19 @@ func TestBackupRetention(t *testing.T) {
 	if _, errOut, code := run(fx, nil, "backup", "--keep", "1", "--no-create"); code != 1 || errOut != "error: confirmation required; rerun with --yes\n" {
 		t.Errorf("no TTY: %d %q", code, errOut)
 	}
-	out, errOut, code := run(fx, nil, "backup", "--keep", "2", "--no-create", "-y")
+	// The listing is prompt context: stderr, and only when the prompt is shown.
+	out, errOut, code := runIn(fx, nil, "n\n", true, "backup", "--keep", "2", "--no-create")
 	want := "Backups to remove (keeping the newest 2):\n" +
 		"   #  CREATED             SIZE  FILE\n" +
 		"   1  2026-11-02 12:00      0B  " + p("2") + "\n" +
 		"   2  2026-11-01 12:00      0B  " + p("1") + "\n" +
-		"Deleted 2 old backups.\n"
-	if code != 0 || out != want {
-		t.Errorf("keep 2: exit %d %s\ngot:\n%s\nwant:\n%s", code, errOut, out, want)
+		"Delete 2 old backups? [y/N] Aborted.\n"
+	if code != 0 || out != "" || errOut != want {
+		t.Errorf("keep 2 abort: exit %d %q\ngot:\n%s\nwant:\n%s", code, out, errOut, want)
+	}
+	out, errOut, code = run(fx, nil, "backup", "--keep", "2", "--no-create", "-y")
+	if code != 0 || out != "Deleted 2 old backups.\n" || errOut != "" {
+		t.Errorf("keep 2: exit %d %q %q", code, out, errOut)
 	}
 	if exists(p("1")) || exists(p("2")) || !exists(p("3")) || !exists(p("4")) || !exists(filepath.Join(fx.BackupDir, "other.tar.gz")) {
 		t.Error("wrong files deleted")
@@ -123,7 +135,7 @@ func TestBackupValidation(t *testing.T) {
 		{[]string{"--no-create"}, "--no-create requires --keep N"},
 		{[]string{"-k", "0"}, "--keep must be at least 1"},
 	} {
-		if _, errOut, code := run(fx, nil, append([]string{"backup"}, tt.args...)...); code != 1 || errOut != "error: "+tt.msg+"\n" {
+		if _, errOut, code := run(fx, nil, append([]string{"backup"}, tt.args...)...); code != 2 || errOut != "error: "+tt.msg+"\n" {
 			t.Errorf("%v: %d %q", tt.args, code, errOut)
 		}
 	}
