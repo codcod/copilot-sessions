@@ -565,6 +565,27 @@ Verdict: rework (R1, R2).
 
 Gate re-run on 8ee65d6 (rebased onto main after the record move; same tree as 64f1d73): `just lint`, `go mod tidy -diff`, `go test -race ./...`, `just test-linux`, `TestRestoreCompat` PASS, acceptance greps clean, pty `^C` at `Continue? [y/N]` → 130 `Aborted.` with no `tmp*`.
 
+### Review 2 — scoped re-review, 2026-11-09 (fix range 08cb9f2..8ee65d6)
+
+R1, R2, R4–R7 verified closed by a fresh delegated reviewer; the R1 and R2 regression tests fail under mutation. New rows:
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| N1a | non-blocking | stale-xref | fixed inline | Three comments added by the R1 fix claim the sqlite driver reports a cancel as an interrupt rather than `context.Canceled` | modernc.org/sqlite v1.62.0 returns `ctx.Err()` on cancel (`stmt.go:113,309`, `tx.go:104`, `conn.go:1264`); delegate probe: cancelled `QueryRowContext`, `ExecContext` and a `rows.Next` loop all give `errors.Is(err, context.Canceled)` | Correct the comments — done in 76bc102 |
+| N1b | non-blocking | design | fixed inline | The R1 fix's `session.ctxErr` defers and the `snapshotDB` cancel branch are redundant (mutation: removing them leaves `go test ./...` green); as a side effect they turned a real DB error coinciding with a cancel into `Aborted.` | delegate mutation + driver source above | Deleted in 76bc102; only the corrupt-DB-during-cancel edge changes, now reported as `error: …` |
+| N2 | non-blocking | plan-wrong | noted | Task 5 X1/F2's instruction to test `ctx.Err()` "because modernc's interrupt error is not `context.Canceled`" rested on a false premise; following it produced R1 | N1 probe | The code now uses `errors.Is(err, context.Canceled)`; this row and R1 record the override |
+
+Disposition summary (review 2): 0 blocking; 3 non-blocking — 2 fixed inline (N1a, N1b), 1 noted (N2); 0 new tickets.
+
+Checklist (review 2):
+- [x] Reviewer independence: delegated, fresh reviewer, `hunt: one pass` over the fix diff; 2 findings re-verified by hand against the driver source, 0 discarded.
+- [x] Gates on 8ee65d6 (delegate) and on 76bc102 (orchestrator): `just lint`, `go mod tidy -diff`, `go test -race ./...`, `just test-linux`, `TestRestoreCompat` PASS, acceptance steps 1, 3, 4 green.
+- [x] Docs-readability (step 4b): skipped — optional; prose changes are small and were read by both reviewers.
+- [x] Governing docs (step 7): spec §1, §2, §6, §6.3, §9, §11, §13 reconciled on the branch.
+- [x] Impact sweep (step 8): CS-009 and CS-010 name `pidIsCopilot`, `ancestorsFrom`, `DefaultAncestors` — signatures unchanged; only their line anchors drifted. No patch; refreshed at their pickup (CS-013 decision 4).
+
+Verdict: approve. Ticket → done; publish pending the user's approval of the commit messages.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: Go 1.27 upgrade plus whole-codebase idiomatic-Go pass from the 2026-11-09 code review, idiom over Python parity
@@ -575,3 +596,4 @@ Gate re-run on 8ee65d6 (rebased onto main after the record move; same tree as 64
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-09 — IN REVIEW → REWORK: review 1: blocking R1, R2
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed
+- 2026-11-09 — IN REVIEW → DONE: review 2 approved: 0 blocking; R4-R7, N1a, N1b fixed inline; R3, R8-R11, N2 noted; 0 new tickets
