@@ -82,7 +82,7 @@ func TestCleanValidation(t *testing.T) {
 		if len(args) < 3 {
 			want = "error: specify session IDs, a filter (--until, --since, --status, --cwd, --grep, --empty) or --all\n"
 		}
-		if code != 1 || errOut != want {
+		if code != 2 || errOut != want {
 			t.Errorf("%v: exit %d, %q", args, code, errOut)
 		}
 	}
@@ -110,9 +110,9 @@ func TestCleanOngoing(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("%v: exit %d: %s", tt.args, code, errOut)
 		}
-		if strings.HasPrefix(out, note) != tt.note || !strings.Contains(out, "\n"+tt.summary) ||
-			!strings.HasSuffix(out, "Dry run: nothing deleted.\n") {
-			t.Errorf("%v:\n%s", tt.args, out)
+		if strings.HasPrefix(errOut, note) != tt.note || !strings.Contains(out, "\n"+tt.summary) ||
+			!strings.HasSuffix(errOut, "Dry run: nothing deleted.\n") {
+			t.Errorf("%v:\n%s%s", tt.args, out, errOut)
 		}
 	}
 }
@@ -121,7 +121,7 @@ func TestCleanOngoing(t *testing.T) {
 func TestCleanCurrent(t *testing.T) {
 	fx := testfix.Build(t)
 	out, errOut, code := run(fx, map[int]bool{testfix.StalePID: true}, "clean", "--all", "--include-ongoing", "-y")
-	if code != 0 || !strings.HasPrefix(out, "Skipped this session (it runs this command).\n") {
+	if code != 0 || !strings.HasPrefix(errOut, "Skipped this session (it runs this command).\n") {
 		t.Fatalf("exit %d: %s%s", code, out, errOut)
 	}
 	if !exists(filepath.Join(fx.Home, "session-state", testfix.Stale)) {
@@ -210,18 +210,35 @@ func TestCleanDelete(t *testing.T) {
 func TestCleanConfirm(t *testing.T) {
 	fx := testfix.Build(t)
 	want := snapshot(t, fx)
-	if out, _, code := run(fx, nil, "clean", "--all", "-n"); code != 0 || !strings.HasSuffix(out, "Dry run: nothing deleted.\n") {
-		t.Errorf("dry run: %d %s", code, out)
+	if out, errOut, code := run(fx, nil, "clean", "--all", "-n"); code != 0 || !strings.HasSuffix(errOut, "Dry run: nothing deleted.\n") || !strings.Contains(out, " of 6 sessions selected (all sessions, ") {
+		t.Errorf("dry run: %d %s%s", code, out, errOut)
+	}
+	// -q prints only the selected IDs on stdout, in table order.
+	ids := testfix.DBOnly + "\n" + testfix.EmptyNoEvents + "\n" + testfix.EmptyStartShutdown + "\n" + testfix.Titled + "\n" + testfix.Stale + "\n" + testfix.Ongoing + "\n"
+	if out, _, code := run(fx, nil, "clean", "-q", "-n", "--all", "--include-ongoing"); code != 0 || out != ids {
+		t.Errorf("quiet dry run: %d %q", code, out)
+	}
+	if out, _, code := run(fx, nil, "clean", "-q", "-n", "--grep", "nothing-matches"); code != 0 || out != "" {
+		t.Errorf("quiet no match: %d %q", code, out)
 	}
 	if got := snapshot(t, fx); got != want {
 		t.Errorf("dry run changed state:\n%s\nwant:\n%s", got, want)
 	}
-	if _, errOut, code := run(fx, nil, "clean", "--all"); code != 1 || errOut != "error: confirmation required; rerun with --yes\n" {
+	if _, errOut, code := run(fx, nil, "clean", "--all"); code != 1 || !strings.HasSuffix(errOut, "error: confirmation required; rerun with --yes\n") {
 		t.Errorf("no TTY: %d %q", code, errOut)
 	}
-	out, _, code := runIn(fx, nil, "n\n", true, "clean", "--all")
-	if code != 0 || !strings.HasSuffix(out, "Permanently delete these sessions? [y/N] Aborted.\n") || snapshot(t, fx) != want {
-		t.Errorf("abort: %d %q", code, out)
+	out, errOut, code := runIn(fx, nil, "n\n", true, "clean", "--all")
+	if code != 0 || strings.Contains(out, "[y/N]") || !strings.HasSuffix(errOut, "Permanently delete these sessions? [y/N] Aborted.\n") || snapshot(t, fx) != want {
+		t.Errorf("abort: %d %q %q", code, out, errOut)
+	}
+	if out, _, code := run(fx, nil, "clean", "-q", "-y", "bbbb", "dddd"); code != 0 || out != testfix.DBOnly+"\n"+testfix.EmptyStartShutdown+"\n" {
+		t.Errorf("quiet delete: %d %q", code, out)
+	}
+	want = snapshot(t, fx)
+	// -q on a terminal: stdout stays IDs-only, the prompt still says what it deletes.
+	out, errOut, code = runIn(fx, nil, "n\n", true, "clean", "-q", "aaaa1")
+	if code != 0 || out != "" || errOut != "1 of 4 sessions selected (IDs aaaa1).\nPermanently delete these sessions? [y/N] Aborted.\n" {
+		t.Errorf("quiet prompt: %d %q %q", code, out, errOut)
 	}
 	out, _, code = runIn(fx, nil, " Yes\n", true, "clean", "aaaa1")
 	if code != 0 || !strings.HasSuffix(out, "Deleted 1 session.\n") || exists(filepath.Join(fx.Home, "session-state", testfix.Titled)) {

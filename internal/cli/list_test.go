@@ -132,11 +132,6 @@ func TestListJSON(t *testing.T) {
 		t.Errorf("ongoing busy %v", rows[5])
 	}
 
-	for _, r := range decode("list", "--json", "-q") {
-		if r["size"] != nil {
-			t.Errorf("--json -q size %v", r["size"])
-		}
-	}
 	if out, _, _ := run(fx, nil, "list", "--json", "-g", "zzz"); out != "[]\n" {
 		t.Errorf("empty JSON %q", out)
 	}
@@ -150,10 +145,12 @@ func TestExitCodes(t *testing.T) {
 		msg  string
 	}{
 		{[]string{"list", "--until", "nope"}, 2, "invalid date 'nope'; use YYYY-MM-DD, today, yesterday, Nd, Nw or Nm"},
-		{[]string{"list", "-S", "1x"}, 2, "invalid date '1x'"},
+		{[]string{"list", "--since", "1x"}, 2, "invalid date '1x'"},
+		{[]string{"list", "-S", "today"}, 2, "unknown shorthand flag: 'S' in -S"},
+		{[]string{"list", "--json", "-q"}, 2, "--json cannot be combined with --quiet"},
 		{[]string{"list", "--status", "open"}, 2, "invalid status 'open'; use a comma-separated list of ongoing, stale, closed"},
 		{[]string{"list", "--bogus"}, 2, "unknown flag: --bogus"},
-		{[]string{}, 2, "required: COMMAND"},
+		{[]string{"lst"}, 2, "unknown command \"lst\" for \"copilot-sessions\"\n\nDid you mean this?\n\tlist\n"},
 		{[]string{"nope"}, 2, `unknown command "nope"`},
 		{[]string{"list", "zzzz"}, 1, "no session matches ID 'zzzz'"},
 		{[]string{"list", "aaaa"}, 1, "ID 'aaaa' is ambiguous: " + testfix.Titled + ", " + testfix.EmptyNoEvents},
@@ -183,6 +180,20 @@ func TestHelp(t *testing.T) {
 	} {
 		if code != 0 || !strings.Contains(out, want) {
 			t.Errorf("help lacks %q", want)
+		}
+	}
+	// A bare invocation shows the root help, exit 0.
+	if bare, errOut, code := run(fx, nil); code != 0 || errOut != "" || bare != out {
+		t.Errorf("bare: exit %d %q\n%s", code, errOut, bare)
+	}
+	for _, short := range []string{"List sessions with their status", "Delete sessions", "Create, list or rotate backups", "Replace current sessions with a backup"} {
+		if !strings.Contains(out, short+"\n") {
+			t.Errorf("help lacks Short %q", short)
+		}
+	}
+	for _, c := range []string{"list", "clean", "backup", "restore"} {
+		if h, _, _ := run(fx, nil, c, "--help"); !strings.Contains(h, "\nExamples:\n  copilot-sessions "+c) {
+			t.Errorf("%s --help lacks examples", c)
 		}
 	}
 	if out, _, _ := run(fx, nil, "--version"); !strings.Contains(out, "test") {

@@ -21,8 +21,11 @@ func newBackup(env Env) *cobra.Command {
 	var keep int
 	cmd := &cobra.Command{
 		Use:   "backup [FILE]",
-		Short: "create, list or rotate backups",
+		Short: "Create, list or rotate backups",
 		Long:  "Create, list or rotate backups.\n\nFILE: output file (default: timestamped file in the backup dir).",
+		Example: `  copilot-sessions backup
+  copilot-sessions backup --list
+  copilot-sessions backup --keep 7 -y -q`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
 				return usageError{err}
@@ -33,17 +36,17 @@ func newBackup(env Env) *cobra.Command {
 			hasKeep := cmd.Flags().Changed("keep")
 			if list {
 				if len(args) > 0 || hasKeep || noCreate {
-					return errors.New("--list cannot be combined with FILE, --keep or --no-create")
+					return usageError{errors.New("--list cannot be combined with FILE, --keep or --no-create")}
 				}
 				return runBackupList(env, asJSON)
 			}
 			switch {
 			case asJSON:
-				return errors.New("--json only works with --list")
+				return usageError{errors.New("--json only works with --list")}
 			case noCreate && !hasKeep:
-				return errors.New("--no-create requires --keep N")
+				return usageError{errors.New("--no-create requires --keep N")}
 			case hasKeep && keep < 1:
-				return errors.New("--keep must be at least 1")
+				return usageError{errors.New("--keep must be at least 1")}
 			}
 			if !noCreate {
 				target := filepath.Join(env.BackupDir, "copilot-sessions-"+env.Now().Local().Format("20060102-150405")+".tar.gz")
@@ -157,16 +160,17 @@ func applyRetention(env Env, keep int, yes, quiet bool) error {
 		return nil
 	}
 	old := backups[keep:]
-	if !quiet {
-		fmt.Fprintf(w, "Backups to remove (keeping the newest %d):\n", keep)
-		printBackups(w, old)
+	if willPrompt(env, yes) {
+		// Context for the prompt, so stderr, and only when the prompt is shown.
+		fmt.Fprintf(env.Stderr, "Backups to remove (keeping the newest %d):\n", keep)
+		printBackups(env.Stderr, old)
 	}
 	ok, err := confirm(env, fmt.Sprintf("Delete %s?", plural(len(old), "old backup")), yes)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		fmt.Fprintln(w, "Aborted.")
+		fmt.Fprintln(env.Stderr, "Aborted.")
 		return nil
 	}
 	for _, b := range old {
@@ -174,6 +178,8 @@ func applyRetention(env Env, keep int, yes, quiet bool) error {
 			return err
 		}
 	}
-	fmt.Fprintf(w, "Deleted %s.\n", plural(len(old), "old backup"))
+	if !quiet {
+		fmt.Fprintf(w, "Deleted %s.\n", plural(len(old), "old backup"))
+	}
 	return nil
 }

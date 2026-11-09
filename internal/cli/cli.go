@@ -80,15 +80,6 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 		Version:       version,
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				return usageError{fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())}
-			}
-			return nil
-		},
-		RunE: func(*cobra.Command, []string) error {
-			return usageError{errors.New("the following arguments are required: COMMAND")}
-		},
 	}
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError{err} })
 	root.SetIn(env.Stdin)
@@ -102,8 +93,9 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 	if err == nil {
 		return 0
 	}
-	fmt.Fprintf(env.Stderr, "error: %s\n", err)
-	if errors.As(err, new(usageError)) {
+	// Cobra's unknown-command message carries its own "Did you mean this?" and newline.
+	fmt.Fprintf(env.Stderr, "error: %s\n", strings.TrimRight(err.Error(), "\n"))
+	if errors.As(err, new(usageError)) || strings.HasPrefix(err.Error(), "unknown command ") {
 		return 2
 	}
 	return 1
@@ -113,7 +105,7 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 func addFilters(cmd *cobra.Command, f *filter.Filters, env Env) {
 	fl := cmd.Flags()
 	fl.VarP(filter.DateFlag(&f.Until, env.Now), "until", "u", "last updated on or before DATE (inclusive)")
-	fl.VarP(filter.DateFlag(&f.Since, env.Now), "since", "S", "last updated on or after DATE (inclusive)")
+	fl.Var(filter.DateFlag(&f.Since, env.Now), "since", "last updated on or after DATE (inclusive)")
 	fl.VarP(filter.StatusFlag(&f.Status), "status", "s", "comma-separated: ongoing, stale, closed")
 	fl.StringVarP(&f.Cwd, "cwd", "c", "", "working directory is `PATH` or below it")
 	fl.StringVarP(&f.Grep, "grep", "g", "", "name contains `TEXT` (case-insensitive)")
@@ -126,9 +118,15 @@ func newList(env Env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list [ID...]",
 		Aliases: []string{"ls"},
-		Short:   "list sessions with their status",
+		Short:   "List sessions with their status",
 		Long:    "List sessions with their status.\n\nID: session ID or unique ID prefix.",
+		Example: `  copilot-sessions list --since 2026-10-01 --until 2026-10-31
+  copilot-sessions list --cwd ~/src/my-app --grep refactor
+  copilot-sessions list --status stale --json`,
 		RunE: func(_ *cobra.Command, args []string) error {
+			if asJSON && quiet {
+				return usageError{errors.New("--json cannot be combined with --quiet")}
+			}
 			f.IDs = args
 			return runList(env, f, asJSON, quiet)
 		},

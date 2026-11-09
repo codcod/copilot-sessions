@@ -23,7 +23,7 @@ func main() {
 	signal.Notify(sig, os.Interrupt)
 	go func() {
 		<-sig
-		fmt.Println("\nAborted.")
+		fmt.Fprintln(os.Stderr, "\nAborted.")
 		os.Exit(130)
 	}()
 	os.Exit(cli.Execute(cli.DefaultEnv(), os.Args[1:], resolveVersion()))
