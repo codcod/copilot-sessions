@@ -45,6 +45,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-017 | move command: relocate a project directory and repoint its sessions | medium | medium | M | [] |  |
 
 ## DONE
 
