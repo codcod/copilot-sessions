@@ -76,7 +76,7 @@ Commit `test: fix Windows reserved-name and Python line-ending expectations (CS-
 - [x] Ticket moved to `6-done/` (step 6)
 - [x] References and governing docs (step 7): none affected
 - [x] Impact sweep (step 8): no TO DO/READY ticket depends on or references CS-015
-- [ ] Commit message & MR presented for approval (step 9)
+- [x] Commit message & MR approved (step 9); main pushed first, `origin/main...HEAD` carried no `tickets/` path; PR #14 opened
 
 | id | severity | class | disposition | description | evidence | suggestion |
 |---|---|---|---|---|---|---|
@@ -92,3 +92,4 @@ cost: estimated S, actual S
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no blocking findings (Description typo fixed)
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet); CI test-windows pending push
 - 2026-11-09 — IN REVIEW → DONE: review: no blocking findings; 1 noted (F1)
+- 2026-11-09 — published: pushed feat/CS-015-windows-ci-tests, opened PR #14 (awaiting human merge)
