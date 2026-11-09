@@ -598,3 +598,4 @@ Verdict: approve. Ticket → done; publish pending the user's approval of the co
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed
 - 2026-11-09 — IN REVIEW → DONE: review 2 approved: 0 blocking; R4-R7, N1a, N1b fixed inline; R3, R8-R11, N2 noted; 0 new tickets
 - 2026-11-09 — published: user approved; tidied to 4 commits (248bbd4, 11ea07f, 6b74024, dd5663a), pushed, PR #11 https://github.com/codcod/copilot-sessions/pull/11; merge pending (human)
+- 2026-11-09 — merged to main (PR #11, b7b8117, https://github.com/codcod/copilot-sessions/commit/b7b8117)
