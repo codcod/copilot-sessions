@@ -66,3 +66,4 @@ Commit `test(session): match copilot case-insensitively in the Windows live chec
 
 - 2026-11-09 — created (TO DO). source: review: CS-014 review finding N1, promoted at the user's request
 - 2026-11-09 — TO DO → READY: plan complete
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no findings

@@ -13,10 +13,11 @@ Last updated: 2026-11-09
 
 ## IN DEVELOPMENT
 
-### copilot-sessions (0/1)
+### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
+| CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | [] |
 
 ## IN REVIEW
 
@@ -38,7 +39,6 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | low | low | S | [] |  |
 
 ## TO DO (impact order, per child)
 
