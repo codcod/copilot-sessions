@@ -47,6 +47,23 @@ jobs:
       - name: test
         run: go test ./...
 
+  # Live-process tests use Toolhelp32 + NtQueryInformationProcess here.
+  test-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test ./...
+
   goreleaser-check:
     runs-on: ubuntu-latest
     steps:
