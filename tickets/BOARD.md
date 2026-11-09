@@ -38,6 +38,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-015 | Fix the two Windows CI test failures after CS-010 | high | low | S | [] |  |
 
 ## TO DO (impact order, per child)
 

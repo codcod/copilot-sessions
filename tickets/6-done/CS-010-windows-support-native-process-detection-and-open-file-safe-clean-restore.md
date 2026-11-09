@@ -323,3 +323,4 @@ Dispositions (round 1): 2 fixed inline (N3, N4), 1 noted (N2), 1 new ticket (N1 
 - 2026-11-09 — note: published with user approval: main's board commits pushed, branch pushed (5 commits, bf1a62e..5e92dd2), PR #13 https://github.com/codcod/copilot-sessions/pull/13. Stays IN REVIEW until CI `test-windows` is green, then DONE.
 - 2026-11-09 — IN REVIEW → DONE: PR #13 merged; test-windows CI still running at merge
 - 2026-11-09 — merged to main (PR #13, bb149b3, https://github.com/codcod/copilot-sessions/commit/bb149b3)
+- 2026-11-09 — note: post-merge `test-windows` (run 42650761905) failed on two wrong test expectations (`nul.txt` is not reserved on Windows 11; Python CRLF output). Filed CS-015. Process detection, symlink and open-file restore tests passed on real Windows.
