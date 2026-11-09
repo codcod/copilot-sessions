@@ -13,10 +13,11 @@ Last updated: 2026-11-09
 
 ## IN DEVELOPMENT
 
-### copilot-sessions (0/1)
+### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
+| CS-014 | macOS: match copilot case-insensitively in process detection | [] |
 
 ## IN REVIEW
 
@@ -38,7 +39,6 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-014 | macOS: match copilot case-insensitively in process detection | medium | low | S | [] |  |
 
 ## TO DO (impact order, per child)
 

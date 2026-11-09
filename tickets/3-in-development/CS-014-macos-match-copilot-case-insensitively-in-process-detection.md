@@ -84,3 +84,4 @@ Commit `fix(session): match copilot case-insensitively on macOS (CS-014)`. Then 
 
 - 2026-11-09 — created (TO DO). source: pickle ticket new
 - 2026-11-09 — TO DO → READY: plan complete
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no findings
