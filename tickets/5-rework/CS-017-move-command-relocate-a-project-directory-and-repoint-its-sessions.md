@@ -261,7 +261,7 @@ Verdict: rework (F1–F4).
 - [x] Findings recorded (step 5).
 - [x] Ticket moved to `5-rework/` (step 6).
 
-### Rework fix record — round 1 (commits f82efee..99ac632)
+### Rework fix record — round 1 (commits 3ed4791..1d8b1a3; recorded as f82efee..99ac632 before a rebase, see R6)
 
 - F1: `runMove` matches sessions against OLD both as given and with symlinks resolved (`resolveSymlinks`, which falls back to the parent for a manual move). `Repoint`/`RebaseAny` take every root. Test `TestMoveSymlink`. cprobe: `move /work/link/app /work/app2` repointed the session recorded at `/data/real/app`.
 - F2: `unquoteYAML` reads single- and double-quoted values; `Load` unquotes `cwd`/`git_root` (`yamlPath`), and the rewrite keeps the quotes. A double-quoted value it cannot unquote is reported as `failed:`, never skipped. Test `TestMoveQuoted`. cprobe: Copilot wrote `cwd: '/work/p: q'`; `list --cwd` found it and `move` rewrote it to `'/work/r: s'`.
@@ -270,6 +270,31 @@ Verdict: rework (F1–F4).
 - Inline fixes: F8 (`repointDB` updates from `s.DBCwd`, no SELECT), F9 (`moveSelection` calls `session.Load` + `Sort`), F11 (`TestMoveFailedSession`, which also covers the rerun), F12 (`TestMoveConfirmNo`).
 - Spec §6.6 updated for F1–F4. Mutation checks: disabling the F1 symlink root, the F4 re-check or the F2 unquote each makes its test fail.
 - `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean.
+
+
+### Scoped re-review — round 2 (2026-11-09)
+
+The fix diff was read as `3ed4791..1d8b1a3`; see R6.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| R1 | blocking | correctness | — | F1 is only half fixed. NEW is not resolved, so sessions are rewritten to NEW as typed (through the symlink), while Copilot records the resolved cwd. | Orchestrator repro: a session with `cwd: /private/tmp/r1…/proj`; after `move -y /tmp/r1…/proj /tmp/r1…/moved` the YAML read `cwd: /tmp/r1…/moved`, but `pwd -P` in NEW gave `/private/tmp/r1…/moved`. | Repoint to NEW with symlinks resolved, after the rename. |
+| R2 | non-blocking | correctness | noted | When OLD is itself a symlink, `os.Rename` moves only the link, yet sessions in the real folder are rewritten through the new link name. The paths still resolve (`link2 -> real`). | Reviewer repro: `move -y …/link …/link2` left `real/` in place, and the YAML read `cwd: …/link2/app`. | Refuse an OLD that is a symlink, if it matters. |
+| R3 | non-blocking | correctness | noted | A YAML `"\xNN"` escape decodes as a byte in Go but as U+00NN in YAML, so a value like this is silently not matched. js-yaml writes printable non-ASCII literally, so this is unlikely. | Reviewer repro: a hand-written `cwd: "<R>/caf\xe9"` was not repointed, exit 0. | Reject `\x`, or decode it as a rune, if such files show up. |
+| R4 | non-blocking | test-gap | fixed inline | The post-confirm ongoing re-check of F4 has no test. | Reviewer read: no test reaches that branch. | Make the fixture Ongoing session go under OLD during the prompt. |
+| R5 | non-blocking | spec-unclear | fixed inline | Spec §6.6 step 5 does not say that sessions appearing during the prompt are repointed too. | `internal/cli/move.go` comment vs spec §6.6. | Add the clause. |
+| R6 | non-blocking | stale-xref | fixed inline | The round 1 fix record cites `f82efee..99ac632`, which the rebase replaced with `42d18da`, `1d8b1a3`. | `git range-diff`. | Cite the commits on the branch. |
+| R7 | non-blocking | stale-xref | fixed inline | The `ponytail:` comment in `unquoteYAML` claims a YAML-only escape is always reported. R3 shows it is not. | `internal/session/move.go`. | State the `\x` limit. |
+
+Disposition summary: 1 blocking (R1) → rework; 6 non-blocking: 4 fixed inline (R4–R7), 2 noted (R2, R3), 0 new tickets.
+
+Verdict: rework (R1).
+
+- [x] Reviewer independence (step 0): delegated scoped re-review, hunt one pass; none of its findings discarded. R1 re-verified by the orchestrator.
+- [x] Stale-branch check (step 0a): `pickle doctor` clean.
+- [x] Implementation audit: F2–F4 and the inline fixes verified; F1 half closed (R1). `just lint`, `just test`, `just test-linux` green; cprobe check `/work/rr1` → `/work/rr2` passed.
+- [x] Correctness hunt: one pass over 8 angles on the fix diff. R1, R2 and R3 reproduced.
+- [x] Consistency and docs audits: clean apart from R5.
 
 ## History
 
@@ -281,3 +306,4 @@ Verdict: rework (F1–F4).
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green: lint, test, test-linux, cprobe real-data check
 - 2026-11-09 — IN REVIEW → REWORK: 4 blocking findings (F1-F4)
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed (F1-F4)
+- 2026-11-09 — IN REVIEW → REWORK: re-review: 1 blocking (R1)
