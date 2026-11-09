@@ -257,7 +257,32 @@ tab completion.
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+Review 2026-11-09, round 0. The orchestrator (the implementing session) delegated the audit to an independent sub-agent (steps 1–4a, `hunt: angle 7 only`). The correctness hunt was the host `/code-review high` tool over `main...feat/CS-010-windows-support`.
+
+- [x] 0 delegated: independent sub-agent with no hand in the branch. Host code-review tool run by the orchestrator. 9 tool findings re-verified by hand, 1 discarded (F7: `filepath.Abs` of an absolute path makes no syscall on Unix, and `GetFullPathNameW` on Windows is a pure string operation).
+- [x] 0a `pickle doctor`: branch ticket copy was stale (D3), rebased onto `main`, now 0 warnings.
+- [x] 1 context: ticket read from `main`. CS-008, CS-009 and CS-013 are done and merged. Prerequisite gate 2 was waived by the user.
+- [x] 2 implementation: tasks 1, 2, 2b, 2c, 3 and 4 met; decisions 1–10 honoured. Mac acceptance re-run green (lint, test, test-linux, windows vet/build, dist-check, dist-snapshot: 4 tar.gz plus 2 zip). **Windows acceptance pending:** the CI `test-windows` job can only run after a push (publish-gated). The manual native-Windows check has not been done (gate 2 waived).
+- [x] 3 hunt: host tool (correctness) plus angle 7 by the delegate (no security findings; `IsLocal`, `os.Root` and the `ToSlash` symlink check traced). Quality: tests assert behaviour (D1 aside).
+- [x] 4 consistency: project-wide search found no stale "Linux and macOS", "not supported yet" or "bash|zsh|fish" references.
+- [x] 4a docs: README, spec, AGENTS.md, RELEASING.md and CHANGELOG covered. No docs build is configured.
+- [ ] 4b readability: skipped. No docs-readability reviewer is configured, and the doc changes are small.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | `filter.under` now runs `filepath.Abs` on the session cwd. A relative or foreign-OS cwd (`C:\Users\me\proj` read on Linux) resolves against the process cwd and can match `--cwd`, so `clean --cwd .` could select it. | Delegate reproduction: `under("proj", <parent of cwd>) = true`. Introduced by task 2c (`internal/filter/filter.go:226`). | Return false for a cwd that is neither absolute nor rooted. `Abs` only to add the drive to a rooted Windows path. |
+| F2 | blocking | correctness | — | The Windows `copilot` match is case-sensitive, so a Copilot started as `Copilot`/`COPILOT` reads as `stale`, and `clean` deletes it without `--include-ongoing`. | unreproduced (needs Windows): cmd passes the typed token in the command line; `strings.Contains(cmdline, "copilot")` in `session_windows.go:28`. | Lower-case the command line before matching. |
+| F3 | blocking | correctness | — | `--cwd` matching is case-sensitive on Windows, so a `c:\` vs `C:\` drive letter or a folder case difference silently selects nothing. | unreproduced (needs Windows): `under` compares bytes (`filter.go:230`). | Compare case-insensitively when GOOS is windows. |
+| F4 | non-blocking | correctness | noted | `expandUser` doesn't expand `~\proj` on Windows. `~/proj` works. | `internal/cli/cli.go:62` | Accept `~` plus `os.IsPathSeparator` if a user asks. |
+| F5 | non-blocking | other | noted | Restoring a backup with symlinks needs symlink privilege or Developer Mode on Windows; without it, the restore aborts (home unchanged). This is pre-existing `Extract` behaviour. | `internal/backup/restore.go:85` | Session dirs rarely hold symlinks; revisit on a report. |
+| F6 | non-blocking | docs-gap | fixed inline | README claimed restore "fails with COPILOT_HOME left unchanged", ignoring the rollback-incomplete path. | `README.md` (`--include-ongoing` caveat) | Reworded to mention the kept-old-data message (commit 49052cc). |
+| F8 | non-blocking | design | noted | `startCopilotHelper` branches on `runtime.GOOS == "windows"` twice, and the live-process test gates repeat an OS list. | `internal/testfix/testfix.go:100` | Collapse when another OS is added. |
+| F9 | non-blocking | other | noted | The Windows helper copies `PING.EXE` without its `.mui`. It might exit early on some installs and make live-process tests flaky. | unreproduced (needs Windows) | If `test-windows` flakes, re-exec a self-built helper instead. |
+| D1 | non-blocking | test-gap | fixed inline | The open-file restore test restored a backup identical to home, so the tree comparison could not detect a missed rollback. | `internal/cli/restore_windows_test.go` | Change `session-state` after the backup (commit 49052cc). |
+| D2 | non-blocking | docs-gap | noted | README doesn't give the Windows default for `COPILOT_BACKUP_DIR`. | `README.md` (~36) | `~` reads as shorthand; add on request. |
+
+Dispositions: 2 fixed inline (F6, D1), 5 noted (F4, F5, F8, F9, D2), 0 folded, 0 new tickets. Blocking: F1, F2, F3 → rework. (F7 discarded, D3 process.)
+cost: estimated M, actual M
 
 ## History
 
@@ -271,3 +296,4 @@ tab completion.
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up
 - 2026-11-09 — note: implemented on `feat/CS-010-windows-support` (5 commits). Mac acceptance green (`just lint`, `just test`, `just test-linux`, windows vet/build, `dist-check`, `dist-snapshot` → 4 tar.gz + windows_{amd64,arm64}.zip). The CI `test-windows` job can't run until the branch is pushed (publish-gated). Smoke run of the windows/arm64 test binaries under Wine 10 (Debian trixie, Docker): everything passes except Wine gaps — no symlinks ("Request not supported"), no `ProcessCommandLineInformation` (STATUS_INVALID_INFO_CLASS), ppid 0 for a Linux-launched process, and renames of dirs holding open files allowed — so the process-detection, symlink and open-file restore tests are proven only by `test-windows`. The Wine run found one real Windows test bug: `TestLoadEdgePaths` used `?` in a dir name (illegal on Windows); fixed by dropping `?` on Windows.
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green on macOS; test-windows CI pending push
+- 2026-11-09 — IN REVIEW → REWORK: blocking findings F1, F2, F3

@@ -20,11 +20,10 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-010 | Windows support: native process detection and open-file-safe clean/restore | [CS-008, CS-009, CS-013] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-09
 
 | id | title | open findings |
 |---|---|---|
+| CS-010 | Windows support: native process detection and open-file-safe clean/restore | blocking findings F1, F2, F3 |
 
 ## READY (impact order, per child)
 
