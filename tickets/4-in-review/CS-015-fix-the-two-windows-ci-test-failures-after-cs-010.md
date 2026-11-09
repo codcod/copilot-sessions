@@ -70,3 +70,4 @@ Commit `test: fix Windows reserved-name and Python line-ending expectations (CS-
 - 2026-11-09 — created (TO DO). source: pickle ticket new
 - 2026-11-09 — TO DO → READY: plan complete
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no blocking findings (Description typo fixed)
+- 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet); CI test-windows pending push
