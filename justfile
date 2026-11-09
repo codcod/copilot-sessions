@@ -45,7 +45,7 @@ fmt:
 # Print the version the binary reports
 [group('release')]
 show-version: build
-    ./{{bin}} --version
+    ./{{bin}} version
 
 # Validate .goreleaser.yaml (GITLAB_TOKEN unset so goreleaser cannot pick GitLab)
 [group('release')]

@@ -208,7 +208,10 @@ func TestHelp(t *testing.T) {
 			t.Errorf("%s --help lacks examples", c)
 		}
 	}
-	if out, _, _ := run(fx, nil, "--version"); !strings.Contains(out, "test") {
+	if out, _, _ := run(fx, nil, "version"); out != "copilot-sessions version test\n" {
 		t.Errorf("version %q", out)
+	}
+	if _, _, code := run(fx, nil, "--version"); code != 2 {
+		t.Errorf("--version exit %d, want 2", code)
 	}
 }
