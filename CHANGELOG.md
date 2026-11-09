@@ -25,4 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.deb` packages for `amd64` and `arm64`, with shell completions, attached to each release
   and published to the Cloudsmith apt repository `codcod/copilot-sessions` (CS-011).
 
+### Changed
+
+- The CLI follows Go/Cobra conventions. A bare `copilot-sessions` shows help, flag-combination
+  mistakes exit 2 (was 1), and unknown commands suggest alternatives. Prompts and notes go to
+  stderr. `-q` prints only IDs or paths: `clean -q` now prints the deleted IDs. `list --json -q`
+  is rejected, so `--json` always computes sizes. `--since` has no `-S` shorthand. Breaking for
+  scripts that rely on exit code 1, on `-S`, or on prompts and notes appearing on stdout (CS-012).
+
 [Unreleased]: https://github.com/codcod/copilot-sessions/commits/main
