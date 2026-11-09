@@ -79,7 +79,7 @@ func Extract(ctx context.Context, archive, dest string) error {
 		case tar.TypeSymlink:
 			// ponytail: downward-only symlinks; resolve against the extracted tree if a real backup ever needs ../ links
 			// IsLocal alone is lexical: "s/../.." passes, and through an "s -> ." link it climbs out.
-			if !filepath.IsLocal(hdr.Linkname) || slices.Contains(strings.Split(hdr.Linkname, "/"), "..") {
+			if !filepath.IsLocal(hdr.Linkname) || slices.Contains(strings.Split(filepath.ToSlash(hdr.Linkname), "/"), "..") {
 				return fmt.Errorf("%s: symlink to %s points outside the archive", hdr.Name, hdr.Linkname)
 			}
 			return root.Symlink(hdr.Linkname, name)

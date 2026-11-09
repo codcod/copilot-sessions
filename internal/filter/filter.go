@@ -4,7 +4,9 @@ package filter
 import (
 	"fmt"
 	"maps"
+	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -220,8 +222,22 @@ func resolveIDs(all []session.Session, prefixes []string) (map[string]bool, erro
 	return ids, nil
 }
 
-// under reports whether path is root or below it; /a/b is not below /a/bc.
+// under reports whether path is root or below it; /a/b is not below /a/bc. A path that is
+// neither absolute nor rooted (a cwd recorded on another OS, like C:\x read on Linux) is never
+// under root. A rooted Windows path (\a\b) goes through Abs like root, to get the drive letter.
+// Windows paths compare case-insensitively.
 func under(path, root string) bool {
-	path = filepath.Clean(path)
-	return path == root || strings.HasPrefix(path, strings.TrimRight(root, "/")+"/")
+	if path == "" || !filepath.IsAbs(path) && !os.IsPathSeparator(path[0]) {
+		return false
+	}
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	sep := string(filepath.Separator)
+	prefix := strings.TrimRight(root, sep) + sep
+	if runtime.GOOS == "windows" {
+		path, root, prefix = strings.ToLower(path), strings.ToLower(root), strings.ToLower(prefix)
+	}
+	return path == root || strings.HasPrefix(path, prefix)
 }

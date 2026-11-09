@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -149,5 +150,20 @@ func TestDescribe(t *testing.T) {
 	}
 	if !f.Any() || (Filters{}).Any() || (Filters{}).Describe() != "all sessions" {
 		t.Error("Any/Describe on empty filters")
+	}
+}
+
+// A cwd that is neither absolute nor rooted (recorded on another OS) never matches, even
+// when it would resolve under root from the process cwd (CS-010 review F1).
+func TestUnderRelative(t *testing.T) {
+	wd, _ := os.Getwd()
+	paths := []string{"proj", ""}
+	if runtime.GOOS != "windows" {
+		paths = append(paths, `C:\Users\me\proj`) // absolute on Windows itself
+	}
+	for _, p := range paths {
+		if under(p, filepath.Dir(wd)) {
+			t.Errorf("under(%q, %q) = true", p, filepath.Dir(wd))
+		}
 	}
 }
