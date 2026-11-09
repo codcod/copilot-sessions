@@ -148,7 +148,9 @@ Append a step *Publish .deb to Cloudsmith* after the goreleaser step, adapted fr
 with the `skip()` helper, the prerelease `case`, the `dist/*.deb` glob, `pipx install
 cloudsmith-cli==1.30.0`, and the per-file `cloudsmith push deb
 "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish` loop collecting failures. Keep a
-short comment above the step naming the soft-fail cases and pointing at RELEASING.md. Update the
+short comment above the step naming the soft-fail cases and pointing at RELEASING.md. Do not
+copy pickle's claim that a `workflow_dispatch` re-run never reaches this step (unverified here,
+`release.mode: replace`); say a missed tag is re-pushed by hand, per RELEASING.md. Update the
 header comment if it still says "only GITHUB_TOKEN".
 
 #### Task 3 — Local check of the step's soft-fail paths
@@ -174,7 +176,7 @@ From the repo root on the feature branch:
        head -1 /usr/share/zsh/vendor-completions/_copilot-sessions | grep -qx '#compdef copilot-sessions'
        copilot-sessions --version
        copilot-sessions list
-       apt-get remove -y -qq copilot-sessions >/dev/null && ! command -v copilot-sessions
+       apt-get remove -y -qq copilot-sessions >/dev/null; test ! -e /usr/bin/copilot-sessions
        echo $arch OK"
    done
    ```
@@ -232,3 +234,5 @@ From the repo root on the feature branch:
 
 - 2026-11-09 — created (TO DO). source: chat: README apt install tested in ubuntu:26.04; repo holds only the CS-005 amd64 test build and no release publishes .deb
 - 2026-11-09 — TO DO → READY: plan complete
+- 2026-11-09 — plan amended inline: applicability gate (independent sub-agent, dry run in a scratch clone green) — acceptance 3's removal check could never fail, now `test ! -e`; Task 2 no longer copies pickle's unverified dispatch re-run claim; unpinned yq image noted and closed
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up, branch feat/CS-011-cloudsmith-deb
