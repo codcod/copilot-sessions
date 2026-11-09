@@ -280,6 +280,24 @@ func TestMoveNewNoHardLinks(t *testing.T) {
 	}
 }
 
+// R2: with nothing to walk, a cancelled ctx still stops Create before it publishes, so an
+// existing FILE is never replaced.
+func TestCreateCancelledBeforePublish(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "b.tar.gz")
+	os.WriteFile(target, []byte("old"), 0o600)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := Create(ctx, t.TempDir(), target, true); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err %v, want context.Canceled", err)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "old" {
+		t.Errorf("target replaced: %q", b)
+	}
+	if entries, _ := os.ReadDir(filepath.Dir(target)); len(entries) != 1 {
+		t.Errorf("left behind: %v", entries)
+	}
+}
+
 // A cancelled ctx stops Create and leaves no temp file next to the target (CS-013).
 func TestCreateCancelled(t *testing.T) {
 	// No DB, so the snapshot is skipped and the archive walk is what sees the cancel.
