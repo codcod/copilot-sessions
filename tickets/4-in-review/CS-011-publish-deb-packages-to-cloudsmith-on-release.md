@@ -236,3 +236,4 @@ From the repo root on the feature branch:
 - 2026-11-09 — TO DO → READY: plan complete
 - 2026-11-09 — plan amended inline: applicability gate (independent sub-agent, dry run in a scratch clone green) — acceptance 3's removal check could never fail, now `test ! -e`; Task 2 no longer copies pickle's unverified dispatch re-run claim; unpinned yq image noted and closed
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up, branch feat/CS-011-cloudsmith-deb
+- 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green
