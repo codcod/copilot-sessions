@@ -137,6 +137,8 @@ tar xzf copilot-sessions_<version>_linux_<arch>.tar.gz -C ~/.local/bin copilot-s
 
 ### With Go
 
+Needs Go 1.27 or later.
+
 ```bash
 go install github.com/codcod/copilot-sessions/cmd/copilot-sessions@latest
 ```

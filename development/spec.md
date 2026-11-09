@@ -5,15 +5,17 @@
 Rewrite the Python script `~/.local/bin/copilot-sessions` as a Go program. The
 program lists, deletes, backs up and restores GitHub Copilot CLI sessions.
 
-The Go version must keep the behavior, flags, output and backup format of the
-Python version. Exceptions are listed in section 11. The Python script is the
-reference implementation: when this spec is unclear, match the script.
+The Go version keeps the flags, aliases and backup format of the Python
+version, and restores its archives (and the script restores Go's). Where
+idiomatic Go and the script's behaviour or output disagree, idiomatic Go wins;
+section 11 lists every such difference. When this spec is unclear, it is the
+spec that gets clarified, not the script that decides.
 
 The program runs on Linux (WSL). It reads `/proc` for process detection.
 
 ## 2. Technical requirements
 
-- Go 1.22 or later. One module, one binary named `copilot-sessions`.
+- Go 1.27 or later. One module, one binary named `copilot-sessions`.
 - CLI framework: `github.com/spf13/cobra`.
 - SQLite: choose the driver. Prefer `modernc.org/sqlite` (no CGO) unless you
   have a reason to use another. The driver must support the online backup API
@@ -169,7 +171,20 @@ Usage errors use exit code 2: bad flag values, unknown flags, wrong argument
 counts, the flag-combination checks under each command's **Validation**, and
 unknown commands (Cobra's message, with `Did you mean this?` suggestions).
 `help <unknown>` is Cobra's: `Unknown help topic` and the root usage, exit 0.
-Ctrl-C prints `\nAborted.` to stderr and exits with 130.
+Ctrl-C prints `\nAborted.` to stderr (no `error:` line) and exits with 130
+(CS-013):
+
+- Ctrl-C at a prompt (`[y/N]`, `Restore which backup?`) aborts at once.
+- Cancellation is honoured up to each command's irreversible step: deleting
+  sessions (`clean`), swapping the restored items in (`restore`) and removing old
+  backups (`backup --keep`). Past that step the command finishes, reports
+  normally and exits 0.
+- Ctrl-C before the swap leaves `COPILOT_HOME` untouched; temp files and dirs
+  are removed.
+- A second Ctrl-C kills the process at once.
+- Only a run stopped by the cancel itself prints `Aborted.`; an error from a
+  step past the irreversible point (a failed rollback, a partial delete) is
+  still reported as `error: …`, exit 1.
 
 **Streams.** stdout carries results only; stderr carries prompts and notes:
 every `[y/N]` prompt, `Restore which backup? [1] ` and the backup table before
@@ -181,7 +196,8 @@ it, restore's `WARNING:` block, `Backups to remove …` and its table, `clean
 else on stdout (`list`: IDs; `clean`: the deleted IDs; `backup`: the created
 path). Notes and prompts still appear on stderr.
 
-**Confirmation helper.** If `--yes` is set, continue. If stdin is not a TTY,
+**Confirmation helper.** If `--yes` is set, continue. If stdin is not a
+terminal (a pipe, a file, or `/dev/null`, which counts as no TTY),
 fail with `confirmation required; rerun with --yes`. Otherwise prompt
 `<question> [y/N] ` (stderr) and accept only `y` or `yes` (case-insensitive).
 
@@ -233,8 +249,7 @@ Sizes are always computed. `--json` with `-q` is a usage error (exit 2):
 ```
 
 `busy` is `null` unless status is `ongoing`. `updated_at` is RFC 3339 in UTC or
-`null`. Go's fractional-second format may differ from Python's
-`2026-11-06T06:03:45.981000+00:00`. Compare the parsed instant, not the text.
+`null`, with Go's fractional-second format (`2026-11-06T06:03:45.981Z`).
 
 **Human-readable sizes:** use base 1024 and units `B`, `K`, `M`, `G`. Stop at
 `G`. Bytes print as an integer (`375B`). Other units print with one decimal
@@ -378,7 +393,9 @@ backups after the first N.
 
 `CREATED` comes from the timestamp in the file name. If that does not parse,
 use the file mtime. With no backups, print `No backups in <dir>`.
-JSON: `[{"file": "<path>", "created": "<ISO local, no zone>", "size": <bytes>}]`.
+JSON: `[{"file": "<path>", "created": "<RFC 3339 local>", "size": <bytes>}]`.
+`created` has a numeric offset and no sub-second part, `+00:00` (never `Z`) in
+UTC: `2026-10-31T12:00:00+02:00`.
 
 **Deliberate departures from the script.**
 
@@ -392,6 +409,7 @@ JSON: `[{"file": "<path>", "created": "<ISO local, no zone>", "size": <bytes>}]`
   after it was stat-ed is padded with zeros to its stat-ed size, as GNU tar does.
   Any other read error (for example a permission error on a top-level item)
   fails the backup.
+- A missing backup directory is created with mode 0700, like `COPILOT_HOME`.
 - Only `.session-operation-locks` itself is excluded; siblings such as
   `.session-operation-locks-old/` are archived.
 - If the session count cannot be read after the archive is written, the backup
@@ -533,9 +551,16 @@ Required cases:
 11. `restore`: full replace round trip (backup Ôćĺ clean `--all` Ôćĺ restore gives
     the same IDs and DB row counts), `-wal`/`-shm` removed, `latest`, and
     rejection of path-traversal archives.
-12. Compatibility: the Go version restores an archive made by the Python
+12. Compatibility (the only Python contract left): the Go version restores an archive made by the Python
     script, and the Python script restores an archive made by the Go version.
     Make this an optional test that runs only if `python3` and the script exist.
+13. Cancellation (CS-013): a cancelled `backup` or extract leaves no temp file;
+    `session.Delete` runs to completion once started; `clean -y`, `restore -y`
+    and `backup --keep -y` cancelled before their irreversible step change
+    nothing and exit 130; Ctrl-C at a `[y/N]` prompt aborts at once.
+14. Permission errors (CS-013): an untraversable `COPILOT_HOME` and a backup in an
+    unreadable directory are reported as errors, not as no sessions or "backup
+    not found".
 
 Make the TTY check, the stdin reader, the clock ("today") and the
 ancestor-PID lookup injectable, so the tests are deterministic.
@@ -579,9 +604,22 @@ never create or migrate tables.
     the summary; `backup -q --keep` prints no rotation messages on stdout.
   - `list --json -q` is a usage error; `--json` always computes sizes.
   - `--since` has no `-S` shorthand.
+- Go idioms (CS-013):
+  - Error texts quote values Go-style (`invalid date "x"`, not `'x'`), and so
+    does `clean`'s summary (`name contains "bug"`).
+  - Permission and I/O errors on `COPILOT_HOME`, `session-store.db` or a backup
+    file are reported, not read as absent (no sessions, no DB, "backup not
+    found").
+  - `backup --list --json` `created` is RFC 3339 with a numeric offset (§6.3),
+    not Python's naive `isoformat`.
+  - Ctrl-C aborts prompts at once, and is honoured before irreversible steps only
+    (§6).
+  - Stdin of `/dev/null` is not a TTY, so a prompt without `-y` fails with
+    `confirmation required` (Python: prompts, reads EOF, prints `Aborted.`).
+  - The backup directory is created with mode 0700, not 0755.
 
-Everything else (flags, aliases, the archive format, and message texts) must
-match.
+The archive format stays compatible both ways (§9 case 12); flags and aliases
+are unchanged.
 
 ## 12. Out of scope
 
@@ -595,11 +633,7 @@ match.
 - `go vet ./...` and `go test ./...` pass.
 - The binary builds without CGO, unless the chosen SQLite driver needs CGO;
   if so, document why.
-- These commands produce the same stdout results as the Python version on the
-  same data: `list`, `list -q`, `list --json`, `clean -n` with each filter, and
-  `backup --list`. Excluded from the comparison: the Python lines that Go prints
-  on stderr (`Skipped …`, `Dry run: nothing deleted.`).
-  Sizes and times may differ only where the data changed between runs.
+- `go fix -diff ./...` is clean.
 - Section 9, case 12 passes.
 - A README section explains how to install the binary and generate the zsh
   completion.
