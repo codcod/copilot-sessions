@@ -62,12 +62,6 @@ install: build
     mkdir -p ~/.local/bin
     install -m 0755 {{bin}} ~/.local/bin/{{bin}}
 
-# Regenerate the zsh completion in ~/.zsh/completions
-[group('lifecycle')]
-completion: build
-    mkdir -p ~/.zsh/completions
-    ./{{bin}} completion zsh > ~/.zsh/completions/_{{bin}}
-
 # Remove build output
 [group('lifecycle')]
 clean:
