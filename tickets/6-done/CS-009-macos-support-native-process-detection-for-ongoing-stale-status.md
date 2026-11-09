@@ -267,3 +267,4 @@ cost: estimated M, actual M
 - 2026-11-09 — IN REVIEW → DONE: review: 0 blocking; 6 fixed inline, 6 noted, 0 new tickets
 - 2026-11-09 — published: branch feat/CS-009-macos-support pushed (4 commits, history kept), PR #12 https://github.com/codcod/copilot-sessions/pull/12; awaiting human merge
 - 2026-11-09 — CI green on PR #12: build-test, test-macos (first run), goreleaser-check
+- 2026-11-09 — merged to main (PR #12, efa324e, https://github.com/codcod/copilot-sessions/commit/efa324e)
