@@ -256,7 +256,28 @@ From the repo root on the feature branch:
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review 1 — 2026-11-09 (branch @ a862e5b)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | Interactive `clean -q` without `-y` asks `Permanently delete these sessions? [y/N]` with no count or scope (before this branch, the summary line printed first). Mandated by CS-012 decision 5; the user signed off on the fix 2026-11-09. | `runIn(fx,nil,"y\n",true,"clean","-q","--all")`: stderr is only the prompt, and 6 sessions are deleted. On main: `6 of 6 sessions selected (all sessions).` before the prompt. `internal/cli/clean.go` `if !quiet {…}` then `confirm` | Under `-q`, when the prompt will show (no `-y`, TTY), print `N of M sessions selected (<scope>).` to stderr, as `backup --keep` does; add a test |
+| F2 | non-blocking | stale-xref | noted | The IN REVIEW History line names `f77d2f9`, the tip from before the rebase onto main; the real tip is `a862e5b` | `git log main..feat/CS-012-idiomatic-cli` | Next move records the current tip (History is append-only) |
+| F3 | non-blocking | design | noted | Unknown commands are classified as exit 2 by matching Cobra's message prefix `unknown command `, not a typed error | `internal/cli/cli.go` `Execute`. No runtime message starts that way, and `TestExitCodes` (`lst` → 2) fails if Cobra rewords it | Per decision 2; revisit only if Cobra changes |
+| F4 | non-blocking | design | fixed inline | The `backup --keep` listing guard `!yes && env.IsTTY()` duplicates `confirm`'s prompt condition; F1 would add a third copy | `internal/cli/backup.go` `applyRetention`, `confirm.go` | One `willPrompt(env, yes)` helper used by `confirm`, `backup` and `clean` (in the rework, no behaviour change) |
+| F5 | non-blocking | design | noted | `backup --list` silently accepts `-q`/`-y`, while `list --json -q` is now rejected | `backup --list --json -q` → exit 0 | Behaviour from before this branch; out of scope |
+| F6 | non-blocking | other | noted | Picker prompt and `invalid choice` error now share stderr, so the error can land on the prompt's line when the input has no newline | `restore.go` `restoreSource`; TTY only, and typed input echoes a newline | Accept |
+| F7 | non-blocking | design | fixed inline | `scope` (incl. `f.Describe()`) is computed under `-q` and never used | `internal/cli/clean.go` | Compute it only where it is printed (in the F1 rework) |
+| F8 | non-blocking | design | noted | Quiet output in `clean` is spread over three exit paths (`printIDs` closure) | `internal/cli/clean.go` | Style; tests pin the `-q` contract |
+| F9 | non-blocking | test-gap | noted | `TestParity`'s `withoutNotes` drops Python's `Skipped`/`Dry run` lines without comparing them with Go's stderr | `internal/cli/parity_test.go` | Covered by `clean_test.go`'s stderr assertions |
+
+Dispositions: 2 fixed inline (F4, F7), 6 noted (F2, F3, F5, F6, F8, F9), 0 folded, 0 new tickets; 1 blocking (F1).
+cost: estimated M, actual M
+
+Checklist:
+- [x] Reviewer independence (step 0): the audits (steps 1–4a) were delegated to a fresh reviewer, hunt `angle 7 only`; `pickle doctor` warned of a stale ticket copy, fixed by rebasing onto main, then 0 warnings.
+- [x] Correctness hunt (step 3): host tool path (`/code-review medium` on `main...feat/CS-012-idiomatic-cli`), 8 findings → F1, F3–F9 (0 discarded); angle 7 by the delegated reviewer, 1 finding (= F1), 6 candidates discarded, all held up when checked.
+- [x] Acceptance re-run by the delegated reviewer: `just lint`, `go test ./...`, `just test-linux`, `TestParity` PASS, CLI probes as expected.
+- [x] Consistency (step 4) and docs (step 4a): spec §5.2/§6/§7/§9/§11/§13, README, CHANGELOG match the code.
 
 ## History
 
@@ -265,3 +286,4 @@ From the repo root on the feature branch:
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: 5 non-blocking findings (3 inline amendments, 2 note-and-close)
 - 2026-11-09 — plan amended inline: applicability gate — `--json -q` removal consequences (spec/test/CHANGELOG), list of flipping tests, rotation listing on stderr only when prompting; 2 findings noted and closed
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, TestParity PASS, CLI probes); branch feat/CS-012-idiomatic-cli @ f77d2f9
+- 2026-11-09 — IN REVIEW → REWORK: review 1: 1 blocking (F1, clean -q prompt without context; decision 5 amended with user sign-off)

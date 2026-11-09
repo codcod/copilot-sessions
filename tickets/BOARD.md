@@ -20,11 +20,10 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | [] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-09
 
 | id | title | open findings |
 |---|---|---|
+| CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | review 1: 1 blocking (F1, clean -q prompt without context; decision 5 amended with user sign-off) |
 
 ## READY (impact order, per child)
 
