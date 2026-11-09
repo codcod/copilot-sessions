@@ -265,3 +265,5 @@ cost: estimated M, actual M
 - 2026-11-09 — plan amended inline: manual real-macOS Copilot check (prerequisite 2's deferred check) waived by user decision; macOS lock layout assumed from the Linux Docker proxy (Copilot CLI 1.0.107). Test helper switched from a copy of sleep to a symlink (decision 6 fallback): macOS killed the copied binary on code-signature mismatch. CI test-macos is still unverified until push.
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (manual macOS check waived)
 - 2026-11-09 — IN REVIEW → DONE: review: 0 blocking; 6 fixed inline, 6 noted, 0 new tickets
+- 2026-11-09 — published: branch feat/CS-009-macos-support pushed (4 commits, history kept), PR #12 https://github.com/codcod/copilot-sessions/pull/12; awaiting human merge
+- 2026-11-09 — CI green on PR #12: build-test, test-macos (first run), goreleaser-check
