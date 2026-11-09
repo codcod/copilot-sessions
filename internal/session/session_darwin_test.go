@@ -51,12 +51,15 @@ func TestProcargsMatch(t *testing.T) {
 	if !argvHasCopilot(procargs(1, "/usr/local/bin/copilot", []string{"/usr/local/bin/copilot"}, nil)) {
 		t.Error("copilot argv: want match")
 	}
+	if !argvHasCopilot(procargs(1, "/usr/local/bin/COPILOT", []string{"COPILOT"}, nil)) {
+		t.Error("upper-case argv: want match")
+	}
 	if argvHasCopilot(procargs(2, "/usr/local/bin/node", []string{"node", "/x/y.js"}, []string{"COPILOT_HOME=/h"})) {
 		t.Error("copilot only in env: want no match")
 	}
 	// The live process: this test binary is Copilot only if some argv string says so (a
 	// -test.run pattern or a profile path under the checkout can).
-	want := slices.ContainsFunc(os.Args, func(a string) bool { return strings.Contains(a, "copilot") })
+	want := slices.ContainsFunc(os.Args, func(a string) bool { return strings.Contains(strings.ToLower(a), "copilot") })
 	if pidIsCopilot(os.Getpid()) != want {
 		t.Errorf("pidIsCopilot(self) = %v for %q", !want, os.Args)
 	}

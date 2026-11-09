@@ -93,7 +93,7 @@ For directory sessions, the DB only fills empty fields.
 
 | Status | Rule |
 |--------|------|
-| `ongoing` | at least one `inuse.<pid>.lock` exists and `/proc/<pid>/cmdline` (on macOS, the argv from `kern.procargs2`, not its environment; on Windows, the command line from `NtQueryInformationProcess`, matched case-insensitively) contains `copilot` |
+| `ongoing` | at least one `inuse.<pid>.lock` exists and `/proc/<pid>/cmdline` (on macOS, the argv from `kern.procargs2`, not its environment; on Windows, the command line from `NtQueryInformationProcess`; on both, matched case-insensitively) contains `copilot` |
 | `stale` | at least one `inuse.*.lock` exists, but none passes the `ongoing` check |
 | `closed` | no `inuse.*.lock` file exists, or the session is DB-only |
 
