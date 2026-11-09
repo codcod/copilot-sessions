@@ -260,3 +260,4 @@ Verdict: **pass** → `6-done/`.
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up, branch feat/CS-011-cloudsmith-deb
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green
 - 2026-11-09 — IN REVIEW → DONE: review pass; 5 non-blocking (1 fixed inline, 4 noted), 0 blocking
+- 2026-11-09 — merged to main (PR #9, 0fb09ce, https://github.com/codcod/copilot-sessions/commit/0fb09ce)
