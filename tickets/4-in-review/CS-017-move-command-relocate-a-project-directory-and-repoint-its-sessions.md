@@ -261,7 +261,7 @@ Verdict: rework (F1–F4).
 - [x] Findings recorded (step 5).
 - [x] Ticket moved to `5-rework/` (step 6).
 
-### Rework fix record — round 1 (commits 3ed4791..1d8b1a3; recorded as f82efee..99ac632 before a rebase, see R6)
+### Rework fix record — round 1 (commits `fix(cli): move handles symlinked paths, quoted YAML and changes during the prompt (CS-017)` and `docs(spec): move resolves symlinks, reads quoted YAML, re-checks after the prompt (CS-017)`; SHAs a71cbfb, 311c453 as of round 2, rewritten by rebases onto main, see R6)
 
 - F1: `runMove` matches sessions against OLD both as given and with symlinks resolved (`resolveSymlinks`, which falls back to the parent for a manual move). `Repoint`/`RebaseAny` take every root. Test `TestMoveSymlink`. cprobe: `move /work/link/app /work/app2` repointed the session recorded at `/data/real/app`.
 - F2: `unquoteYAML` reads single- and double-quoted values; `Load` unquotes `cwd`/`git_root` (`yamlPath`), and the rewrite keeps the quotes. A double-quoted value it cannot unquote is reported as `failed:`, never skipped. Test `TestMoveQuoted`. cprobe: Copilot wrote `cwd: '/work/p: q'`; `list --cwd` found it and `move` rewrote it to `'/work/r: s'`.
@@ -296,6 +296,13 @@ Verdict: rework (R1).
 - [x] Correctness hunt: one pass over 8 angles on the fix diff. R1, R2 and R3 reproduced.
 - [x] Consistency and docs audits: clean apart from R5.
 
+
+### Rework fix record — round 2 (commit a3f958e, `fix(cli): move writes NEW with symlinks resolved (CS-017)`; before it 311c453)
+
+- R1: `Repoint` is given `resolveSymlinks(newPath)`, so sessions get NEW as Copilot records it. `TestMoveSymlink` now moves through the link on both sides; it fails when the fix is reverted. cprobe: `move -y /work/rr2 /lnk/rr3` (`/lnk -> /work`) wrote `cwd: /work/rr3`, and the session resumed from `/lnk/rr3`.
+- Inline fixes: R4 (`TestMoveRecheckOngoing`; fails when the post-confirm ongoing check is removed), R5 (spec §6.6 step 5 clause and step 7 resolved NEW), R6 (round 1 record cites commit subjects), R7 (the `ponytail:` comment states the `\x` limit).
+- `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: user asked for a way to move a project folder Copilot was used in; findings from a Copilot CLI 1.0.108 probe in Docker
@@ -307,3 +314,4 @@ Verdict: rework (R1).
 - 2026-11-09 — IN REVIEW → REWORK: 4 blocking findings (F1-F4)
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed (F1-F4)
 - 2026-11-09 — IN REVIEW → REWORK: re-review: 1 blocking (R1)
+- 2026-11-09 — REWORK → IN REVIEW: R1 fixed

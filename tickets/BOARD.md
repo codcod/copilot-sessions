@@ -20,10 +20,11 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (0/1)
+### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
+| CS-017 | move command: relocate a project directory and repoint its sessions | [] |
 
 ## REWORK
 
@@ -31,7 +32,6 @@ Last updated: 2026-11-09
 
 | id | title | open findings |
 |---|---|---|
-| CS-017 | move command: relocate a project directory and repoint its sessions | re-review: 1 blocking (R1) |
 
 ## READY (impact order, per child)
 
