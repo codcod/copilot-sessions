@@ -11,7 +11,7 @@ import (
 
 // Drive letters, backslash traversal and reserved device names never land outside dest.
 func TestExtractUnsafeWindowsPaths(t *testing.T) {
-	for _, name := range []string{"C:/x", "C:x", `..\x`, "CON", "nul.txt", "s/AUX"} {
+	for _, name := range []string{"C:/x", "C:x", `..\x`, "CON", "NUL", "s/AUX"} {
 		archive := filepath.Join(t.TempDir(), "a.tar.gz")
 		testfix.Archive(t, archive, tar.Header{Typeflag: tar.TypeReg, Name: name, Mode: 0o644})
 		if err := Extract(t.Context(), archive, t.TempDir()); err == nil || !strings.Contains(err.Error(), "unsafe path") {

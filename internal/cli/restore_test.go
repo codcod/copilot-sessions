@@ -235,7 +235,7 @@ func pythonRunner(t *testing.T, fx *testfix.Fixture) func(args ...string) string
 		if err != nil {
 			t.Fatalf("python %v: %v", args, err)
 		}
-		return string(out)
+		return strings.ReplaceAll(string(out), "\r\n", "\n")
 	}
 }
 
