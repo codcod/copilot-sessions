@@ -2,7 +2,7 @@
 id: CS-009
 title: macOS support: native process detection for ongoing/stale status
 project: copilot-sessions
-depends-on: [CS-008]
+depends-on: [CS-008, CS-013]
 spawned-by: [CS-008]
 impact: low
 complexity: medium

@@ -38,8 +38,8 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-009 | macOS support: native process detection for ongoing/stale status | low | medium | M | [CS-008] |  |
-| CS-010 | Windows support: native process detection and open-file-safe clean/restore | low | medium | M | [CS-008, CS-009] |  |
+| CS-009 | macOS support: native process detection for ongoing/stale status | low | medium | M | [CS-008, CS-013] |  |
+| CS-010 | Windows support: native process detection and open-file-safe clean/restore | low | medium | M | [CS-008, CS-009, CS-013] |  |
 
 ## TO DO (impact order, per child)
 
@@ -47,6 +47,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-013 | Go 1.27 upgrade and idiomatic Go across the codebase | medium | high | L | [] |  |
 
 ## DONE
 

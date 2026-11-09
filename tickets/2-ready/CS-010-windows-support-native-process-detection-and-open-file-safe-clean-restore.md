@@ -2,7 +2,7 @@
 id: CS-010
 title: Windows support: native process detection and open-file-safe clean/restore
 project: copilot-sessions
-depends-on: [CS-008, CS-009]
+depends-on: [CS-008, CS-009, CS-013]
 spawned-by: [CS-008]
 impact: low
 complexity: medium
