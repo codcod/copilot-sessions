@@ -192,6 +192,19 @@ command. §11: replace "Everything else … must match" with the list of intende
 (decisions 1–6), keeping the archive format and message texts as must-match. §13: parity is
 stdout results with the exclusions from decision 8.
 
+#### Pickup amendments (2026-11-09, applicability gate)
+
+- **`list --json -q` loses size-less JSON** (user confirmed reject as planned): delete the
+  `--json -q` test (`list_test.go` ~l.135), rewrite spec §6.1 (`size` is `null` under `-q`) and
+  §9 case 4, and note in CHANGELOG that `--json` always computes sizes.
+- **Existing tests that flip** (Task 7): bare run expecting exit 2 (`list_test.go` ~l.156),
+  `-S 1x` (~l.153), exit-1 assertions (`clean_test.go` ~l.84, `backup_test.go` ~l.125),
+  prompt/`Aborted.` on stdout (`clean_test.go` ~l.223, `restore_test.go` ~l.117).
+- **`backup --keep` rotation listing** (user confirmed): `Backups to remove …` and its table go
+  to stderr only when the `[y/N]` prompt is actually shown (no `-y`); never with `-y`.
+- Note-and-close: Task 8's `--json` case is rebuilt from `list + f` (args already carry `-q`);
+  `Execute` trims the trailing newline Cobra's unknown-command message already carries.
+
 ### Acceptance test
 
 From the repo root on the feature branch:
@@ -249,3 +262,5 @@ From the repo root on the feature branch:
 
 - 2026-11-09 — created (TO DO). source: chat: review of CLI options against Go/Cobra conventions found 8 discrepancies; user asked to fix all and update the spec
 - 2026-11-09 — TO DO → READY: plan complete
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: 5 non-blocking findings (3 inline amendments, 2 note-and-close)
+- 2026-11-09 — plan amended inline: applicability gate — `--json -q` removal consequences (spec/test/CHANGELOG), list of flipping tests, rotation listing on stderr only when prompting; 2 findings noted and closed
