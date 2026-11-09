@@ -109,11 +109,11 @@ func TestBackupList(t *testing.T) {
 		got = append(got, filepath.Base(r["file"].(string))+" "+r["created"].(string)+" "+string(must(json.Marshal(r["size"]))))
 	}
 	want := []string{
-		"copilot-sessions-bad.tar.gz 2026-10-30T10:15:30 0", // mtime in XST (UTC+2)
-		"copilot-sessions-20261104-120000.tar.gz 2026-11-04T12:00:00 3",
-		"copilot-sessions-20261103-120000.tar.gz 2026-11-03T12:00:00 0",
-		"copilot-sessions-20261102-120000.tar.gz 2026-11-02T12:00:00 0",
-		"copilot-sessions-20261101-120000.tar.gz 2026-11-01T12:00:00 0",
+		"copilot-sessions-bad.tar.gz 2026-10-30T10:15:30+02:00 0", // mtime in XST (UTC+2)
+		"copilot-sessions-20261104-120000.tar.gz 2026-11-04T12:00:00+02:00 3",
+		"copilot-sessions-20261103-120000.tar.gz 2026-11-03T12:00:00+02:00 0",
+		"copilot-sessions-20261102-120000.tar.gz 2026-11-02T12:00:00+02:00 0",
+		"copilot-sessions-20261101-120000.tar.gz 2026-11-01T12:00:00+02:00 0",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("got:\n%s", strings.Join(got, "\n"))

@@ -3,14 +3,16 @@ package session
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,25 +20,46 @@ import (
 	_ "modernc.org/sqlite" // database/sql driver "sqlite", no CGO
 )
 
+// Names of the entries in COPILOT_HOME that hold session data (spec §3).
 const (
-	StateDir   = "session-state"
-	DBFile     = "session-store.db"
-	OpenState  = "open-sessions-state.json"
+	// StateDir holds one directory per session.
+	StateDir = "session-state"
+	// DBFile is the SQLite session store.
+	DBFile = "session-store.db"
+	// OpenState is the JSON object of open sessions, keyed by session ID.
+	OpenState = "open-sessions-state.json"
+	// SidebarDir holds the sidebar JSON files that list session IDs.
 	SidebarDir = "sidebar-sessions-state"
 )
+
+// Status is a session's liveness (spec §4.2).
+type Status string
+
+// The session statuses, in display order.
+const (
+	StatusOngoing Status = "ongoing"
+	StatusStale   Status = "stale"
+	StatusClosed  Status = "closed"
+)
+
+// Statuses returns the session statuses in display order.
+func Statuses() []Status { return []Status{StatusOngoing, StatusStale, StatusClosed} }
+
+// ErrNoDB reports that COPILOT_HOME has no session-store.db.
+var ErrNoDB = errors.New("no " + DBFile)
 
 // Session is one Copilot session, from its directory, the DB or both.
 type Session struct {
 	ID, Name, Cwd string
-	Updated       *time.Time // nil when unknown (DB-only sessions only)
-	Dir           string     // "" for DB-only sessions
-	Status        string     // ongoing, stale or closed
+	Updated       time.Time // zero when unknown (DB-only sessions only)
+	Dir           string    // "" for DB-only sessions
+	Status        Status
 	Busy, Current bool
-	Size          *int64 // nil unless sizes were computed
+	Size          int64 // 0 until FillSizes, and always for DB-only sessions
 }
 
-// Load reads every session under home. Sizes are computed only when withSize is set.
-func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error) {
+// Load reads every session under home, without sizes (see FillSizes).
+func Load(ctx context.Context, home string, ancestors map[int]bool) ([]Session, error) {
 	var out []Session
 	index := map[string]int{}
 	dirs, err := Dirs(home)
@@ -44,15 +67,17 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 		return nil, err
 	}
 	for _, dir := range dirs {
-		meta := readWorkspace(dir)
-		updated := ParseTime(meta["updated_at"])
-		if updated == nil {
-			updated = ParseTime(meta["created_at"])
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-		if updated == nil {
+		meta := readWorkspace(dir)
+		updated, ok := ParseTime(meta["updated_at"])
+		if !ok {
+			updated, ok = ParseTime(meta["created_at"])
+		}
+		if !ok {
 			if fi, err := os.Stat(dir); err == nil {
-				t := fi.ModTime().UTC()
-				updated = &t
+				updated = fi.ModTime().UTC()
 			}
 		}
 		id := filepath.Base(dir)
@@ -60,7 +85,7 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 		out = append(out, Session{ID: id, Name: meta["name"], Cwd: meta["cwd"], Updated: updated, Dir: dir})
 	}
 
-	rows, err := dbSessions(home)
+	rows, err := dbSessions(ctx, home)
 	if err != nil {
 		return nil, err
 	}
@@ -72,10 +97,10 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 			out = append(out, Session{ID: r.id})
 		}
 		s := &out[i]
-		if s.Updated == nil {
-			s.Updated = ParseTime(r.updated)
-			if s.Updated == nil {
-				s.Updated = ParseTime(r.created)
+		if s.Updated.IsZero() {
+			var ok bool
+			if s.Updated, ok = ParseTime(r.updated); !ok {
+				s.Updated, _ = ParseTime(r.created)
 			}
 		}
 		if s.Name == "" {
@@ -90,14 +115,11 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 	for i := range out {
 		s := &out[i]
 		pids, locked := lockPIDs(s.Dir)
-		s.Status = "closed"
+		s.Status = StatusClosed
 		if locked {
-			s.Status = "stale"
-			for _, p := range pids {
-				if pidIsCopilot(p) {
-					s.Status = "ongoing"
-					break
-				}
+			s.Status = StatusStale
+			if slices.ContainsFunc(pids, pidIsCopilot) {
+				s.Status = StatusOngoing
 			}
 		}
 		if entry, ok := open[s.ID].(map[string]any); ok {
@@ -108,23 +130,34 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 				s.Current = true
 			}
 		}
-		if withSize {
-			var n int64
-			if s.Dir != "" {
-				n = dirSize(s.Dir)
-			}
-			s.Size = &n
-		}
 	}
 	return out, nil
 }
 
+// FillSizes sets Size for each session with a directory; DB-only sessions stay at 0.
+func FillSizes(ctx context.Context, ss []Session) error {
+	for i := range ss {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if ss[i].Dir != "" {
+			ss[i].Size = dirSize(ss[i].Dir)
+		}
+	}
+	return nil
+}
+
 // Dirs lists the non-hidden directories (symlinks followed) in session-state/.
-// A missing session-state/ has no sessions; an unreadable one is an error.
+// A missing session-state/, or one that is not a dir, has no sessions; any other error
+// (EACCES on COPILOT_HOME, I/O) is returned.
 func Dirs(home string) ([]string, error) {
 	state := filepath.Join(home, StateDir)
-	if fi, err := os.Stat(state); err != nil || !fi.IsDir() {
+	fi, err := os.Stat(state)
+	if errors.Is(err, fs.ErrNotExist) || err == nil && !fi.IsDir() {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	entries, err := os.ReadDir(state)
 	if err != nil {
@@ -168,26 +201,30 @@ var timeLayouts = []string{
 }
 
 // ParseTime parses an ISO 8601 timestamp, possibly quoted. No zone means UTC.
-// Fractional seconds are accepted by every layout. It returns nil when nothing matches.
-func ParseTime(v string) *time.Time {
+// Fractional seconds are accepted by every layout. ok is false when nothing matches.
+func ParseTime(v string) (t time.Time, ok bool) {
 	v = strings.Trim(strings.TrimSpace(v), `'"`)
 	if v == "" {
-		return nil
+		return time.Time{}, false
 	}
 	for _, layout := range timeLayouts {
 		if t, err := time.Parse(layout, v); err == nil {
-			return &t
+			return t, true
 		}
 	}
-	return nil
+	return time.Time{}, false
 }
 
-// OpenDB opens session-store.db if it is a regular file; it returns nil, nil otherwise,
-// so the driver never creates one.
+// OpenDB opens session-store.db if it is a regular file, so the driver never creates
+// one. A missing or non-regular file returns ErrNoDB; any other Stat error is returned.
 func OpenDB(home string) (*sql.DB, error) {
 	p := filepath.Join(home, DBFile)
-	if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() {
-		return nil, nil
+	fi, err := os.Stat(p)
+	if errors.Is(err, fs.ErrNotExist) || err == nil && !fi.Mode().IsRegular() {
+		return nil, ErrNoDB
+	}
+	if err != nil {
+		return nil, err
 	}
 	// Escape the path: a raw '?', '#' or '%' would be read as URI syntax and open another file.
 	dsn := url.URL{Scheme: "file", OmitHost: true, Path: p, RawQuery: "_pragma=busy_timeout(30000)"}
@@ -196,13 +233,16 @@ func OpenDB(home string) (*sql.DB, error) {
 
 type dbRow struct{ id, summary, cwd, created, updated string }
 
-func dbSessions(home string) ([]dbRow, error) {
+func dbSessions(ctx context.Context, home string) ([]dbRow, error) {
 	db, err := OpenDB(home)
-	if db == nil || err != nil {
+	if errors.Is(err, ErrNoDB) {
+		return nil, nil
+	}
+	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query("SELECT id, summary, cwd, created_at, updated_at FROM sessions")
+	rows, err := db.QueryContext(ctx, "SELECT id, summary, cwd, created_at, updated_at FROM sessions")
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", DBFile, err)
 	}
@@ -219,18 +259,24 @@ func dbSessions(home string) ([]dbRow, error) {
 }
 
 // HasTurns returns the IDs of sessions with rows in the turns table.
-func HasTurns(home string) (map[string]bool, error) {
+func HasTurns(ctx context.Context, home string) (map[string]bool, error) {
 	ids := map[string]bool{}
 	db, err := OpenDB(home)
-	if db == nil || err != nil {
-		return ids, err
+	if errors.Is(err, ErrNoDB) {
+		return ids, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	defer db.Close()
 	var n int
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'turns'").Scan(&n); err != nil || n == 0 {
-		return ids, err
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'turns'").Scan(&n); err != nil {
+		return nil, err
 	}
-	rows, err := db.Query("SELECT DISTINCT session_id FROM turns")
+	if n == 0 {
+		return ids, nil
+	}
+	rows, err := db.QueryContext(ctx, "SELECT DISTINCT session_id FROM turns")
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +288,10 @@ func HasTurns(home string) (map[string]bool, error) {
 		}
 		ids[id.String] = true
 	}
-	return ids, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 // IsEmpty reports whether s has no turns and no user message in events.jsonl (spec §4.3).
@@ -283,7 +332,7 @@ func lockPIDs(dir string) ([]int, bool) {
 	if dir == "" {
 		return nil, false
 	}
-	entries, _ := os.ReadDir(dir)
+	entries, _ := os.ReadDir(dir) // unreadable dir: no locks visible, reads as closed
 	var pids []int
 	locked := false
 	for _, e := range entries {
@@ -292,25 +341,17 @@ func lockPIDs(dir string) ([]int, bool) {
 		}
 		locked = true
 		part := strings.Split(e.Name(), ".")[1]
-		if isDigits(part) {
-			if pid, err := strconv.Atoi(part); err == nil {
-				pids = append(pids, pid)
-			}
+		if pid, ok := ParseUint(part); ok {
+			pids = append(pids, pid)
 		}
 	}
 	return pids, locked
 }
 
-func isDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, c := range []byte(s) {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
+// ParseUint parses s as plain decimal digits (no sign, no spaces) that fit an int.
+func ParseUint(s string) (int, bool) {
+	n, err := strconv.ParseUint(s, 10, strconv.IntSize-1)
+	return int(n), err == nil
 }
 
 func pidIsCopilot(pid int) bool {
@@ -331,8 +372,11 @@ func ancestorsFrom(pid int) map[int]bool {
 			break
 		}
 		i := bytes.LastIndexByte(b, ')')
+		if i < 0 {
+			break
+		}
 		fields := strings.Fields(string(b[i+1:]))
-		if i < 0 || len(fields) < 2 {
+		if len(fields) < 2 {
 			break
 		}
 		if pid, err = strconv.Atoi(fields[1]); err != nil {
@@ -379,7 +423,8 @@ func dirSize(dir string) int64 {
 	if real, err := filepath.EvalSymlinks(dir); err == nil {
 		dir = real
 	}
-	filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
+	// The callback never returns an error, so neither does WalkDir.
+	_ = filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
 		if err == nil && d.Type().IsRegular() {
 			if fi, err := d.Info(); err == nil {
 				total += fi.Size()
@@ -390,19 +435,13 @@ func dirSize(dir string) int64 {
 	return total
 }
 
-// Sort orders sessions by Updated ascending, unknown first, ties by ID.
+// Sort orders sessions by Updated ascending, unknown (zero) first, ties by ID.
 func Sort(ss []Session) {
-	sort.SliceStable(ss, func(i, j int) bool {
-		a, b := ss[i].Updated, ss[j].Updated
-		switch {
-		case a == nil && b != nil:
-			return true
-		case a != nil && b == nil:
-			return false
-		case a != nil && !a.Equal(*b):
-			return a.Before(*b)
+	slices.SortStableFunc(ss, func(a, b Session) int {
+		if c := a.Updated.Compare(b.Updated); c != 0 {
+			return c
 		}
-		return ss[i].ID < ss[j].ID
+		return strings.Compare(a.ID, b.ID)
 	})
 }
 

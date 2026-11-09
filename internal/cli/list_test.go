@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -23,16 +25,26 @@ func run(fx *testfix.Fixture, ancestors map[int]bool, args ...string) (string, s
 
 // runIn is run with the given stdin and TTY state.
 func runIn(fx *testfix.Fixture, ancestors map[int]bool, stdin string, tty bool, args ...string) (string, string, int) {
-	var out, errOut bytes.Buffer
-	env := Env{
+	return runCtx(context.Background(), fx, ancestors, strings.NewReader(stdin), tty, args...)
+}
+
+// runCtx is runIn with a ctx and any stdin reader.
+func runCtx(ctx context.Context, fx *testfix.Fixture, ancestors map[int]bool, stdin io.Reader, tty bool, args ...string) (string, string, int) {
+	env, out, errOut := testEnv(fx, ancestors, stdin, tty)
+	code := Execute(ctx, env, args, "test")
+	return out.String(), errOut.String(), code
+}
+
+// testEnv is an Env against fx with a fixed clock, writing to the returned buffers.
+func testEnv(fx *testfix.Fixture, ancestors map[int]bool, stdin io.Reader, tty bool) (env *Env, out, errOut *bytes.Buffer) {
+	out, errOut = new(bytes.Buffer), new(bytes.Buffer)
+	return &Env{
 		Home: fx.Home, BackupDir: fx.BackupDir,
-		Stdin: strings.NewReader(stdin), Stdout: &out, Stderr: &errOut,
+		Stdin: stdin, Stdout: out, Stderr: errOut,
 		IsTTY:        func() bool { return tty },
 		Now:          func() time.Time { return time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC) },
 		AncestorPIDs: func() map[int]bool { return ancestors },
-	}
-	code := Execute(env, args, "test")
-	return out.String(), errOut.String(), code
+	}, out, errOut
 }
 
 func TestListTable(t *testing.T) {
@@ -144,16 +156,16 @@ func TestExitCodes(t *testing.T) {
 		code int
 		msg  string
 	}{
-		{[]string{"list", "--until", "nope"}, 2, "invalid date 'nope'; use YYYY-MM-DD, today, yesterday, Nd, Nw or Nm"},
-		{[]string{"list", "--since", "1x"}, 2, "invalid date '1x'"},
+		{[]string{"list", "--until", "nope"}, 2, `invalid date "nope"; use YYYY-MM-DD, today, yesterday, Nd, Nw or Nm`},
+		{[]string{"list", "--since", "1x"}, 2, `invalid date "1x"`},
 		{[]string{"list", "-S", "today"}, 2, "unknown shorthand flag: 'S' in -S"},
 		{[]string{"list", "--json", "-q"}, 2, "--json cannot be combined with --quiet"},
-		{[]string{"list", "--status", "open"}, 2, "invalid status 'open'; use a comma-separated list of ongoing, stale, closed"},
+		{[]string{"list", "--status", "open"}, 2, `invalid status "open"; use a comma-separated list of ongoing, stale, closed`},
 		{[]string{"list", "--bogus"}, 2, "unknown flag: --bogus"},
 		{[]string{"lst"}, 2, "unknown command \"lst\" for \"copilot-sessions\"\n\nDid you mean this?\n\tlist\n"},
 		{[]string{"nope"}, 2, `unknown command "nope"`},
-		{[]string{"list", "zzzz"}, 1, "no session matches ID 'zzzz'"},
-		{[]string{"list", "aaaa"}, 1, "ID 'aaaa' is ambiguous: " + testfix.Titled + ", " + testfix.EmptyNoEvents},
+		{[]string{"list", "zzzz"}, 1, `no session matches ID "zzzz"`},
+		{[]string{"list", "aaaa"}, 1, `ID "aaaa" is ambiguous: ` + testfix.Titled + ", " + testfix.EmptyNoEvents},
 		{[]string{"list", "aaaa1"}, 0, ""},
 	}
 	for _, tt := range tests {

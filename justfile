@@ -9,7 +9,7 @@ go_version := `awk '/^go /{split($2, v, "."); print v[1] "." v[2]}' go.mod`
 # Build the binary (no CGO)
 [group('build')]
 build:
-    CGO_ENABLED=0 go build -ldflags "-X main.Version={{version}}" -o {{bin}} ./cmd/copilot-sessions
+    CGO_ENABLED=0 go build -ldflags "-X main.version={{version}}" -o {{bin}} ./cmd/copilot-sessions
 
 # Run tests
 [group('qa')]
@@ -23,12 +23,13 @@ test-linux:
       -v go-mod:/go/pkg/mod -v go-build:/root/.cache/go-build \
       golang:{{go_version}} go test -count=1 ./...
 
-# Static checks: formatting + go vet
+# Static checks: formatting + go vet + go fix modernizers
 [group('qa')]
 lint:
     @unformatted="$(gofmt -l .)"; \
       if [ -n "$unformatted" ]; then echo "gofmt drift:"; echo "$unformatted"; exit 1; fi
     go vet ./...
+    go fix -diff ./...
 
 # Check formatting only
 [group('qa')]

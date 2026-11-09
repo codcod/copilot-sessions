@@ -23,6 +23,8 @@ jobs:
           cache: true
       - name: vet
         run: go vet ./...
+      - name: go fix
+        run: go fix -diff ./...
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       # Linux runner: the /proc tests run natively here (CI's `just test-linux`).

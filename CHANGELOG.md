@@ -32,5 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stderr. `-q` prints only IDs or paths: `clean -q` now prints the deleted IDs. `list --json -q`
   is rejected, so `--json` always computes sizes. `--since` has no `-S` shorthand. Breaking for
   scripts that rely on exit code 1, on `-S`, or on prompts and notes appearing on stdout (CS-012).
+- Built with Go 1.27 and current dependencies. Error messages quote values Go-style (`"…"`).
+  Permission errors on the Copilot home, its DB or a backup file are reported instead of read as
+  "no sessions" / "backup not found". `backup --list --json` `created` is RFC 3339 with a numeric
+  local offset. Ctrl-C aborts prompts immediately and is honoured before any irreversible step; a
+  second Ctrl-C kills at once. `/dev/null` on stdin no longer counts as a terminal, so an
+  unattended `clean`/`restore` without `-y` fails instead of aborting silently. The backup
+  directory is created with mode 0700. Breaking for scripts that parse error text or `created`,
+  or that relied on `</dev/null` exiting 0 (CS-013).
 
 [Unreleased]: https://github.com/codcod/copilot-sessions/commits/main

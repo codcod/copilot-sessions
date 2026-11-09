@@ -2,7 +2,7 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -10,36 +10,31 @@ import (
 	"github.com/codcod/copilot-sessions/internal/cli"
 )
 
-// Version is set at build time with -ldflags "-X main.Version=...".
-var Version = "dev"
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
 
 func main() {
-	// ponytail: os.Exit skips deferred cleanup, so Ctrl-C mid-backup leaves a temp dir in
-	// $TMPDIR and mid-restore a tmp* dir in COPILOT_HOME (not a session, not a backup item).
-	// Between restore deleting an item and renaming its replacement in, that tmp* dir holds
-	// the only copy of the restored item, the same window as the Python script. Switch to
-	// context cancellation (and roll back the replace, CS-007) if that ever matters.
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-	go func() {
-		<-sig
-		fmt.Fprintln(os.Stderr, "\nAborted.")
-		os.Exit(130)
-	}()
-	os.Exit(cli.Execute(cli.DefaultEnv(), os.Args[1:], resolveVersion()))
+	// Ctrl-C cancels ctx: commands stop before their irreversible step and deferred
+	// cleanup runs. stop() after the first signal restores default handling, so a second
+	// Ctrl-C kills at once.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	go func() { <-ctx.Done(); stop() }()
+	code := cli.Execute(ctx, cli.DefaultEnv(), os.Args[1:], resolveVersion())
+	stop()
+	os.Exit(code)
 }
 
-// resolveVersion keeps the ldflags-stamped Version (goreleaser, `just build`). A
+// resolveVersion keeps the ldflags-stamped version (goreleaser, `just build`). A
 // `go install …@vX.Y.Z` build runs no ldflags, so it falls back to the module version
 // in the build info; "(devel)" and "" are discarded in favour of the default "dev".
 func resolveVersion() string {
-	if Version != "" && Version != "dev" {
-		return Version
+	if version != "" && version != "dev" {
+		return version
 	}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		if v := info.Main.Version; v != "" && v != "(devel)" {
 			return v
 		}
 	}
-	return Version
+	return version
 }

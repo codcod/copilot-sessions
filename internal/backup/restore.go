@@ -3,13 +3,13 @@ package backup
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -19,9 +19,9 @@ import (
 // Inspect reads the archive headers once. isBackup is true if it holds session-state
 // or session-store.db; sessions counts the distinct non-hidden names directly below
 // session-state/ (spec §6.4).
-func Inspect(path string) (isBackup bool, sessions int, err error) {
+func Inspect(ctx context.Context, path string) (isBackup bool, sessions int, err error) {
 	names := map[string]bool{}
-	err = walk(path, func(hdr *tar.Header, _ *tar.Reader) error {
+	err = walk(ctx, path, func(hdr *tar.Header, _ *tar.Reader) error {
 		name := strings.TrimSuffix(hdr.Name, "/")
 		if name == session.StateDir || name == session.DBFile {
 			isBackup = true
@@ -42,7 +42,7 @@ func Inspect(path string) (isBackup bool, sessions int, err error) {
 // Stricter than Python, symlinks must point downward and no top-level item may end up a
 // symlink. Every write goes through os.Root, so nothing can land outside dest even if a
 // check were missed.
-func Extract(archive, dest string) error {
+func Extract(ctx context.Context, archive, dest string) error {
 	root, err := os.OpenRoot(dest)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func Extract(archive, dest string) error {
 		mtime time.Time
 	}
 	var dirs []dirAttr
-	err = walk(archive, func(hdr *tar.Header, tr *tar.Reader) error {
+	err = walk(ctx, archive, func(hdr *tar.Header, tr *tar.Reader) error {
 		if hdr.Typeflag == tar.TypeXGlobalHeader {
 			return nil
 		}
@@ -74,7 +74,7 @@ func Extract(archive, dest string) error {
 		if err := root.MkdirAll(filepath.Dir(name), 0o777); err != nil {
 			return err
 		}
-		root.Remove(name) // replace an earlier member of the same name, as tarfile does
+		_ = root.Remove(name) // replace an earlier member of the same name, as tarfile does; usually absent
 		switch hdr.Typeflag {
 		case tar.TypeSymlink:
 			// ponytail: downward-only symlinks; resolve against the extracted tree if a real backup ever needs ../ links
@@ -120,13 +120,13 @@ func Extract(archive, dest string) error {
 	// A top-level item is renamed into COPILOT_HOME, where a link would resolve against
 	// siblings outside the restored tree. Checked on the result, so ./x, a/../x and a hard
 	// link to a symlink are all caught.
-	for _, item := range Items {
+	for _, item := range Items() {
 		if fi, err := root.Lstat(item); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("%s: top-level item is a symlink", item)
 		}
 	}
 	// Directory mtimes last, deepest first, as tarfile.extractall does.
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].name > dirs[j].name })
+	slices.SortFunc(dirs, func(a, b dirAttr) int { return strings.Compare(b.name, a.name) })
 	for _, d := range dirs {
 		if err := root.Chtimes(d.name, d.mtime, d.mtime); err != nil {
 			return err
@@ -135,8 +135,8 @@ func Extract(archive, dest string) error {
 	return nil
 }
 
-// walk calls fn for every header of the gzip tar at path.
-func walk(path string, fn func(*tar.Header, *tar.Reader) error) error {
+// walk calls fn for every header of the gzip tar at path, stopping once ctx is done.
+func walk(ctx context.Context, path string, fn func(*tar.Header, *tar.Reader) error) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -148,6 +148,9 @@ func walk(path string, fn func(*tar.Header, *tar.Reader) error) error {
 	}
 	tr := tar.NewReader(gz)
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		hdr, err := tr.Next()
 		if errors.Is(err, io.EOF) {
 			return nil

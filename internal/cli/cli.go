@@ -3,6 +3,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/codcod/copilot-sessions/internal/filter"
 	"github.com/codcod/copilot-sessions/internal/session"
@@ -29,22 +31,20 @@ type Env struct {
 	Now             func() time.Time
 	AncestorPIDs    func() map[int]bool
 
-	in *bufio.Reader // the one buffered Stdin reader of a run; set by Execute
+	in *bufio.Reader // the one buffered Stdin reader of a run; created by readLine
 }
 
 // DefaultEnv fills Env from the process environment.
-func DefaultEnv() Env {
-	home, _ := os.UserHomeDir()
-	return Env{
+func DefaultEnv() *Env {
+	home, _ := os.UserHomeDir() // "" falls back to relative defaults; COPILOT_HOME overrides
+	return &Env{
 		Home:      envPath("COPILOT_HOME", filepath.Join(home, ".copilot")),
 		BackupDir: envPath("COPILOT_BACKUP_DIR", filepath.Join(home, ".copilot-backups")),
 		Stdin:     os.Stdin,
 		Stdout:    os.Stdout,
 		Stderr:    os.Stderr,
-		IsTTY: func() bool {
-			fi, err := os.Stdin.Stat()
-			return err == nil && fi.Mode()&os.ModeCharDevice != 0
-		},
+		// A terminal check, not ModeCharDevice: /dev/null is a char device but no TTY.
+		IsTTY:        func() bool { return term.IsTerminal(int(os.Stdin.Fd())) },
 		Now:          time.Now,
 		AncestorPIDs: session.DefaultAncestors,
 	}
@@ -57,12 +57,34 @@ func envPath(name, def string) string {
 	return def
 }
 
+// expandUser expands a leading ~ to the home directory.
+func expandUser(p string) string {
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home + p[1:]
+		}
+	}
+	return p
+}
+
 // usageError marks errors that exit with code 2.
 type usageError struct{ error }
 
-// Execute runs the command line args and returns the exit code.
-func Execute(env Env, args []string, version string) int {
-	env.in = bufio.NewReader(env.Stdin)
+// usageArgs wraps the errors of v in usageError, so bad positional args exit 2.
+func usageArgs(v cobra.PositionalArgs) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := v(cmd, args); err != nil {
+			return usageError{err}
+		}
+		return nil
+	}
+}
+
+// Execute runs the command line args and returns the exit code. A run that stopped
+// because ctx was cancelled (Ctrl-C) prints only "Aborted." and returns 130; any other
+// error is reported, even after a cancel, since it can come from a step past the point
+// of no return (a failed rollback, a partial delete).
+func Execute(ctx context.Context, env *Env, args []string, version string) int {
 	root := &cobra.Command{
 		Use:   "copilot-sessions",
 		Short: description,
@@ -89,12 +111,20 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 	root.AddCommand(newList(env), newClean(env), newBackup(env), newRestore(env))
 	registerCompletions(root, env)
 
-	err := root.Execute()
+	err := root.ExecuteContext(ctx)
 	if err == nil {
 		return 0
 	}
+	// Every ctx check and the sqlite driver return context.Canceled itself (possibly
+	// wrapped), so this matches a cancel and nothing else.
+	if errors.Is(err, context.Canceled) {
+		fmt.Fprint(env.Stderr, "\nAborted.\n")
+		return 130
+	}
 	// Cobra's unknown-command message carries its own "Did you mean this?" and newline.
 	fmt.Fprintf(env.Stderr, "error: %s\n", strings.TrimRight(err.Error(), "\n"))
+	// Cobra 1.10 has no typed unknown-command error, and a custom root Args is never
+	// reached for a non-runnable root, so the message is the only signal.
 	if errors.As(err, new(usageError)) || strings.HasPrefix(err.Error(), "unknown command ") {
 		return 2
 	}
@@ -102,19 +132,21 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 }
 
 // addFilters registers the filter flags shared by list and clean.
-func addFilters(cmd *cobra.Command, f *filter.Filters, env Env) {
+func addFilters(cmd *cobra.Command, f *filter.Filters, env *Env) {
 	fl := cmd.Flags()
-	fl.VarP(filter.DateFlag(&f.Until, env.Now), "until", "u", "last updated on or before DATE (inclusive)")
-	fl.Var(filter.DateFlag(&f.Since, env.Now), "since", "last updated on or after DATE (inclusive)")
-	fl.VarP(filter.StatusFlag(&f.Status), "status", "s", "comma-separated: ongoing, stale, closed")
+	fl.VarP(&dateFlag{&f.Until, env.Now}, "until", "u", "last updated on or before DATE (inclusive)")
+	fl.Var(&dateFlag{&f.Since, env.Now}, "since", "last updated on or after DATE (inclusive)")
+	fl.VarP(&statusFlag{&f.Status}, "status", "s", "comma-separated: ongoing, stale, closed")
 	fl.StringVarP(&f.Cwd, "cwd", "c", "", "working directory is `PATH` or below it")
 	fl.StringVarP(&f.Grep, "grep", "g", "", "name contains `TEXT` (case-insensitive)")
 	fl.BoolVarP(&f.Empty, "empty", "e", false, "no user message was ever sent (opened and closed without a prompt)")
 }
 
-func newList(env Env) *cobra.Command {
+type listOpts struct{ JSON, Quiet bool }
+
+func newList(env *Env) *cobra.Command {
 	var f filter.Filters
-	var asJSON, quiet bool
+	var o listOpts
 	cmd := &cobra.Command{
 		Use:     "list [ID...]",
 		Aliases: []string{"ls"},
@@ -123,41 +155,51 @@ func newList(env Env) *cobra.Command {
 		Example: `  copilot-sessions list --since 2026-10-01 --until 2026-10-31
   copilot-sessions list --cwd ~/src/my-app --grep refactor
   copilot-sessions list --status stale --json`,
-		RunE: func(_ *cobra.Command, args []string) error {
-			if asJSON && quiet {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if o.JSON && o.Quiet {
 				return usageError{errors.New("--json cannot be combined with --quiet")}
 			}
 			f.IDs = args
-			return runList(env, f, asJSON, quiet)
+			return runList(cmd.Context(), env, f, o)
 		},
 	}
 	addFilters(cmd, &f, env)
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print JSON")
-	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "print session IDs only")
+	cmd.Flags().BoolVar(&o.JSON, "json", false, "print JSON")
+	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", false, "print session IDs only")
 	return cmd
 }
 
-// load reads all sessions and applies the filters, sorted for output.
-func load(env Env, f filter.Filters, withSize bool) (all, selected []session.Session, err error) {
-	all, err = session.Load(env.Home, env.AncestorPIDs(), withSize)
+// load reads all sessions and applies the filters, sorted for output. Only the selected
+// sessions are sized, and only when sized is set.
+func load(ctx context.Context, env *Env, f filter.Filters, sized bool) (all, selected []session.Session, err error) {
+	all, err = session.Load(ctx, env.Home, env.AncestorPIDs())
 	if err != nil {
 		return nil, nil, err
 	}
-	selected, err = filter.Apply(all, f, func() (map[string]bool, error) { return session.HasTurns(env.Home) })
+	f.Cwd = expandUser(f.Cwd)
+	selected, err = filter.Apply(all, f, func() (map[string]bool, error) { return session.HasTurns(ctx, env.Home) })
+	if err != nil {
+		return nil, nil, err
+	}
 	session.Sort(selected)
-	return all, selected, err
+	if sized {
+		if err := session.FillSizes(ctx, selected); err != nil {
+			return nil, nil, err
+		}
+	}
+	return all, selected, nil
 }
 
-func runList(env Env, f filter.Filters, asJSON, quiet bool) error {
-	all, selected, err := load(env, f, !quiet)
+func runList(ctx context.Context, env *Env, f filter.Filters, o listOpts) error {
+	all, selected, err := load(ctx, env, f, !o.Quiet)
 	if err != nil {
 		return err
 	}
 	w := env.Stdout
 	switch {
-	case asJSON:
+	case o.JSON:
 		return writeJSON(w, selected)
-	case quiet:
+	case o.Quiet:
 		for _, s := range selected {
 			fmt.Fprintln(w, s.ID)
 		}
@@ -166,15 +208,15 @@ func runList(env Env, f filter.Filters, asJSON, quiet bool) error {
 		fmt.Fprintln(w, "No sessions match.")
 		return nil
 	}
-	printTable(w, selected, true)
-	counts := map[string]int{}
+	printTable(w, selected)
+	counts := map[session.Status]int{}
 	var total int64
 	for _, s := range selected {
 		counts[s.Status]++
-		total += *s.Size
+		total += s.Size
 	}
 	var parts []string
-	for _, st := range filter.Statuses {
+	for _, st := range session.Statuses() {
 		if counts[st] > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", counts[st], st))
 		}
@@ -191,32 +233,24 @@ func plural(n int, word string) string {
 	return fmt.Sprintf("%d %ss", n, word)
 }
 
-// printTable prints the session table; the SIZE column needs computed sizes.
-func printTable(w io.Writer, ss []session.Session, showSize bool) {
-	sizeHead := ""
-	if showSize {
-		sizeHead = fmt.Sprintf("%6s  ", "SIZE")
-	}
-	fmt.Fprintf(w, "  %-16s  %-14s  %s%-36s  NAME\n", "UPDATED", "STATUS", sizeHead, "ID")
+// printTable prints the session table; the SIZE column needs FillSizes.
+func printTable(w io.Writer, ss []session.Session) {
+	fmt.Fprintf(w, "  %-16s  %-14s  %6s  %-36s  NAME\n", "UPDATED", "STATUS", "SIZE", "ID")
 	for _, s := range ss {
 		when := "unknown"
-		if s.Updated != nil {
+		if !s.Updated.IsZero() {
 			when = s.Updated.Local().Format("2006-01-02 15:04")
 		}
-		status := s.Status
-		if status == "ongoing" {
+		status := string(s.Status)
+		if s.Status == session.StatusOngoing {
 			status = "ongoing (idle)"
 			if s.Busy {
 				status = "ongoing (busy)"
 			}
 		}
-		size := ""
-		if showSize {
-			v := "-"
-			if s.Dir != "" {
-				v = session.HumanSize(*s.Size)
-			}
-			size = fmt.Sprintf("%6s  ", v)
+		size := "-"
+		if s.Dir != "" {
+			size = session.HumanSize(s.Size)
 		}
 		name := []rune(s.Name)
 		if len(name) > 60 {
@@ -229,38 +263,44 @@ func printTable(w io.Writer, ss []session.Session, showSize bool) {
 		if s.Dir == "" {
 			notes += " (db only)"
 		}
-		fmt.Fprintf(w, "  %-16s  %-14s  %s%s  %s%s\n", when, status, size, s.ID, string(name), notes)
+		fmt.Fprintf(w, "  %-16s  %-14s  %6s  %s  %s%s\n", when, status, size, s.ID, string(name), notes)
 	}
 }
 
+// sessionJSON is the list --json row; the pointers encode "unknown" as null (spec §6.1).
 type sessionJSON struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Cwd       string  `json:"cwd"`
-	UpdatedAt *string `json:"updated_at"`
-	Status    string  `json:"status"`
-	Busy      *bool   `json:"busy"`
-	Current   bool    `json:"current"`
-	Size      *int64  `json:"size"`
-	DBOnly    bool    `json:"db_only"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	Cwd       string         `json:"cwd"`
+	UpdatedAt *string        `json:"updated_at"`
+	Status    session.Status `json:"status"`
+	Busy      *bool          `json:"busy"`
+	Current   bool           `json:"current"`
+	Size      int64          `json:"size"`
+	DBOnly    bool           `json:"db_only"`
 }
 
 func writeJSON(w io.Writer, ss []session.Session) error {
 	out := make([]sessionJSON, 0, len(ss))
 	for _, s := range ss {
 		j := sessionJSON{ID: s.ID, Name: s.Name, Cwd: s.Cwd, Status: s.Status, Current: s.Current, Size: s.Size, DBOnly: s.Dir == ""}
-		if s.Updated != nil {
+		if !s.Updated.IsZero() {
 			v := s.Updated.UTC().Format(time.RFC3339Nano)
 			j.UpdatedAt = &v
 		}
-		if s.Status == "ongoing" {
+		if s.Status == session.StatusOngoing {
 			busy := s.Busy
 			j.Busy = &busy
 		}
 		out = append(out, j)
 	}
+	return newJSONEncoder(w).Encode(out)
+}
+
+// newJSONEncoder writes 2-space-indented JSON without HTML escaping.
+func newJSONEncoder(w io.Writer) *json.Encoder {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
-	return enc.Encode(out)
+	return enc
 }

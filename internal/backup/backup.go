@@ -4,21 +4,24 @@ package backup
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/codcod/copilot-sessions/internal/session"
 )
 
-// Items are the top-level archive entries, each stored only if it exists.
-var Items = []string{session.StateDir, session.DBFile, session.OpenState, session.SidebarDir}
+// Items returns the top-level archive entries, each stored only if it exists.
+func Items() []string {
+	return []string{session.StateDir, session.DBFile, session.OpenState, session.SidebarDir}
+}
 
 // Pattern matches the backup files that --list and --keep consider.
 const Pattern = "copilot-sessions-*.tar.gz"
@@ -29,19 +32,20 @@ const locks = session.StateDir + "/.session-operation-locks"
 // VACUUM INTO snapshot, so committed WAL content is included and -wal/-shm never are.
 // The archive is built in a hidden temp file next to target and moved into place only
 // when complete, so a failure leaves nothing behind. With overwrite false an existing
-// target is never replaced ("backup already exists").
-func Create(home, target string, overwrite bool) (err error) {
+// target is never replaced ("backup already exists"). A cancelled ctx stops the walk
+// and leaves nothing behind.
+func Create(ctx context.Context, home, target string, overwrite bool) (err error) {
 	tmp, err := os.MkdirTemp("", "copilot-sessions-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
 	snapshot := filepath.Join(tmp, session.DBFile)
-	if err := snapshotDB(home, snapshot); err != nil {
+	if err := snapshotDB(ctx, home, snapshot); err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
 		return err
 	}
 	f, err := os.CreateTemp(filepath.Dir(target), ".copilot-sessions-*.tmp")
@@ -51,10 +55,10 @@ func Create(home, target string, overwrite bool) (err error) {
 	closed := false
 	defer func() {
 		if !closed {
-			f.Close()
+			_ = f.Close() // already failing; the temp file is removed next
 		}
 		if err != nil {
-			os.Remove(f.Name())
+			_ = os.Remove(f.Name()) // best effort: a leftover never matches Pattern
 		}
 	}()
 	if err := f.Chmod(0o600); err != nil {
@@ -62,7 +66,7 @@ func Create(home, target string, overwrite bool) (err error) {
 	}
 	gz := gzip.NewWriter(f)
 	tw := tar.NewWriter(gz)
-	for _, item := range Items {
+	for _, item := range Items() {
 		src := filepath.Join(home, item)
 		if item == session.DBFile {
 			src = snapshot
@@ -72,7 +76,7 @@ func Create(home, target string, overwrite bool) (err error) {
 		} else if err != nil {
 			return err
 		}
-		if err := addTree(tw, src, item); err != nil {
+		if err := addTree(ctx, tw, src, item); err != nil {
 			return err
 		}
 	}
@@ -86,23 +90,25 @@ func Create(home, target string, overwrite bool) (err error) {
 	if err := f.Close(); err != nil {
 		return err
 	}
+	// Last chance to cancel: publishing may replace an explicit FILE.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if overwrite {
 		return os.Rename(f.Name(), target)
 	}
-	if err = moveNew(f.Name(), target); errors.Is(err, fs.ErrExist) {
+	if err = moveNew(f.Name(), target, os.Link); errors.Is(err, fs.ErrExist) {
 		return fmt.Errorf("backup already exists: %s", target)
 	}
 	return err
 }
 
-// link is os.Link; tests swap it to simulate a filesystem without hard links.
-var link = os.Link
-
 // moveNew moves tmp to target only if target does not exist yet (fs.ErrExist otherwise).
-func moveNew(tmp, target string) error {
+// link is os.Link; tests pass a failing one to simulate a filesystem without hard links.
+func moveNew(tmp, target string, link func(string, string) error) error {
 	err := link(tmp, target)
 	if err == nil {
-		os.Remove(tmp) // a leftover never matches Pattern
+		_ = os.Remove(tmp) // a leftover never matches Pattern
 		return nil
 	}
 	if errors.Is(err, fs.ErrExist) {
@@ -114,21 +120,24 @@ func moveNew(tmp, target string) error {
 	if err != nil {
 		return err
 	}
-	c.Close()
+	_ = c.Close() // empty placeholder, nothing written to lose
 	if err := os.Rename(tmp, target); err != nil {
-		os.Remove(target)
+		_ = os.Remove(target) // best effort: drop the placeholder
 		return err
 	}
 	return nil
 }
 
-func snapshotDB(home, snapshot string) error {
+func snapshotDB(ctx context.Context, home, snapshot string) error {
 	db, err := session.OpenDB(home)
-	if err != nil || db == nil {
+	if errors.Is(err, session.ErrNoDB) {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 	defer db.Close()
-	if _, err := db.Exec("VACUUM INTO ?", snapshot); err != nil {
+	if _, err := db.ExecContext(ctx, "VACUUM INTO ?", snapshot); err != nil {
 		return fmt.Errorf("snapshot %s: %w", session.DBFile, err)
 	}
 	return nil
@@ -136,8 +145,11 @@ func snapshotDB(home, snapshot string) error {
 
 // addTree adds root as name, recursively, the way Python's tarfile.add does:
 // symlinks are stored, never followed; types tar cannot hold are skipped.
-func addTree(tw *tar.Writer, root, name string) error {
+func addTree(ctx context.Context, tw *tar.Writer, root, name string) error {
 	return filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err != nil {
 			return skipVanished(err)
 		}
@@ -231,7 +243,8 @@ func List(dir string) ([]string, error) {
 			out = append(out, filepath.Join(dir, e.Name()))
 		}
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(out)))
+	slices.Sort(out)
+	slices.Reverse(out)
 	return out, nil
 }
 
