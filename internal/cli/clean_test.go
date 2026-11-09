@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -184,7 +185,7 @@ func TestCleanDelete(t *testing.T) {
 	if ids, _ := json.Marshal(sm["sessionIds"]); string(ids) != `["`+testfix.Stale+`","`+testfix.EmptyNoEvents+`"]` || sm["collapsed"] != false {
 		t.Errorf("sidebar %v", sm)
 	}
-	if fi, _ := os.Stat(sidebar); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(sidebar); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Errorf("sidebar mode %v", fi.Mode().Perm())
 	}
 	if b, _ := os.ReadFile(sidebar); !strings.HasSuffix(string(b), "]\n}\n") || !strings.Contains(string(b), "\n  \"collapsed\": false") {

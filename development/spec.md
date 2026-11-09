@@ -11,8 +11,10 @@ idiomatic Go and the script's behaviour or output disagree, idiomatic Go wins;
 section 11 lists every such difference. When this spec is unclear, it is the
 spec that gets clarified, not the script that decides.
 
-The program runs on Linux (WSL) and macOS. Process detection reads `/proc` on Linux and
-uses `sysctl` (`kern.procargs2`, `kern.proc.pid`) on macOS.
+The program runs on Linux (WSL), macOS and Windows. Process detection reads `/proc` on Linux,
+uses `sysctl` (`kern.procargs2`, `kern.proc.pid`) on macOS, and on Windows a Toolhelp32
+snapshot (parent PIDs) plus `NtQueryInformationProcess` (`ProcessCommandLineInformation`).
+A Windows binary can't see WSL processes, nor the reverse: their sessions read as `stale`.
 
 ## 2. Technical requirements
 
@@ -91,7 +93,7 @@ For directory sessions, the DB only fills empty fields.
 
 | Status | Rule |
 |--------|------|
-| `ongoing` | at least one `inuse.<pid>.lock` exists and `/proc/<pid>/cmdline` (on macOS, the argv from `kern.procargs2`, not its environment) contains the bytes `copilot` |
+| `ongoing` | at least one `inuse.<pid>.lock` exists and `/proc/<pid>/cmdline` (on macOS, the argv from `kern.procargs2`, not its environment; on Windows, the command line from `NtQueryInformationProcess`, matched case-insensitively) contains `copilot` |
 | `stale` | at least one `inuse.*.lock` exists, but none passes the `ongoing` check |
 | `closed` | no `inuse.*.lock` file exists, or the session is DB-only |
 
@@ -101,7 +103,8 @@ for `ongoing` sessions.
 **Current session.** Build the set of ancestor PIDs of the running process:
 start at `os.Getpid()` and follow the parent PID up to PID 1. The parent PID
 is field 2 after the **last** `)` in `/proc/<pid>/stat` (on macOS, `Eproc.Ppid` from the
-`kern.proc.pid` sysctl; the walk also stops where a PID is its own parent). A session is
+`kern.proc.pid` sysctl; on Windows, `ParentProcessID` from one Toolhelp32 snapshot, stopping at
+PID 0/4 or a PID already seen; the walk also stops where a PID is its own parent). A session is
 `current` if one of its lock PIDs is in that set. This is the Copilot session
 that runs the command.
 
@@ -151,7 +154,7 @@ All filters combine with **AND**, including ID prefixes.
 | `-u, --until DATE` | local date of `updated` ÔëĄ DATE |
 | `--since DATE` | local date of `updated` Ôëą DATE |
 | `-s, --status LIST` | comma-separated subset of `ongoing,stale,closed` |
-| `-c, --cwd PATH` | `cwd` equals PATH or is below it. Expand `~`, make the path absolute, clean it. `/a/b` matches `/a/b` and `/a/b/c`, not `/a/bc`. |
+| `-c, --cwd PATH` | `cwd` equals PATH or is below it. Expand `~`, make the path absolute, clean it. `/a/b` matches `/a/b` and `/a/b/c`, not `/a/bc`. A `cwd` that is not absolute (recorded on another OS) never matches. On Windows the comparison is case-insensitive. |
 | `-g, --grep TEXT` | `name` contains TEXT, case-insensitive |
 | `-e, --empty` | session is empty (4.3) |
 
@@ -628,7 +631,6 @@ are unchanged.
 - Merging restores (restore always replaces).
 - Pruning `logs/`.
 - Automatic backup before `clean` or `restore`.
-- Windows and macOS support.
 
 ## 13. Acceptance criteria
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ func TestExtractModesAndLinks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if fi.Mode() != want {
+		if runtime.GOOS != "windows" && fi.Mode() != want {
 			t.Errorf("%s: mode %v, want %v", name, fi.Mode(), want)
 		}
 		if !fi.ModTime().Equal(mtime) {

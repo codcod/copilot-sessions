@@ -101,7 +101,7 @@ func TestLoadFixture(t *testing.T) {
 }
 
 func TestLoadOngoing(t *testing.T) {
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 		t.Skip("needs process detection")
 	}
 	fx := testfix.Build(t)
@@ -120,7 +120,7 @@ func TestDefaultAncestors(t *testing.T) {
 	if !pids[os.Getpid()] || pids[1] {
 		t.Errorf("ancestors = %v", pids)
 	}
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 		return
 	}
 	// The fixture's helper is a child of this process, so the walk must reach us.
@@ -257,7 +257,11 @@ func TestLoadEdgePaths(t *testing.T) {
 		_, err = db.Exec("CREATE TABLE sessions (id TEXT, summary TEXT, cwd TEXT, created_at TEXT, updated_at TEXT); INSERT INTO sessions VALUES ('abc', 's', '/', NULL, NULL)")
 		db.Close()
 	}
-	home := filepath.Join(parent, "h#x?y%z")
+	name := "h#x?y%z"
+	if runtime.GOOS == "windows" {
+		name = "h#x%z" // ? is not a legal Windows file name character
+	}
+	home := filepath.Join(parent, name)
 	if err == nil {
 		err = os.Rename(plain, home)
 	}
@@ -290,8 +294,9 @@ func TestLoadEdgePaths(t *testing.T) {
 	}
 
 	// An unreadable session-state/ is an error, not an empty home (review F3).
-	// Root ignores permissions, so this part runs only as a normal user.
-	if os.Getuid() != 0 {
+	// Root ignores permissions, so this part runs only as a normal user, and not on Windows
+	// (no Unix permission bits).
+	if os.Getuid() != 0 && runtime.GOOS != "windows" {
 		state := filepath.Join(home, StateDir)
 		os.Chmod(state, 0)
 		t.Cleanup(func() { os.Chmod(state, 0o755) })

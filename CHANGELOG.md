@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - macOS support: correct `ongoing`/`stale` status and darwin release archives (CS-009).
+- Windows support: native process detection, PowerShell completion and windows zip archives (CS-010).
 
 ### Changed
 
