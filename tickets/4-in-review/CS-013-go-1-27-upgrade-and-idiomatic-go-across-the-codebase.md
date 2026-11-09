@@ -530,3 +530,4 @@ From the repo root on the feature branch:
 - 2026-11-09 — plan amended inline: an independent plan challenge (F1–F16) found that Ctrl-C could still lead to deletion, the cancel output and exit logic were wrong, the restore-rollback claim was false, and a probe passed falsely; user approved amending decisions 2/8/10/12, adding 14 (x/term TTY check) and 15 (Describe %q), and folding the rest into the tasks
 - 2026-11-09 — plan amended inline: pickup applicability gate F1 — acceptance step 3 gains a `contains '` grep so decision 15 (Describe %q) is probed; F2–F4 noted and closed (cli has no sort imports; notty/no-zero-default probes are regression guards only; C5 is a logic slip, not a panic)
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up
+- 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green
