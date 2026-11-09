@@ -91,7 +91,7 @@ Commit `fix(session): match copilot case-insensitively on macOS (CS-014)`. Then 
 - [x] Ticket moved to `6-done/` (step 6)
 - [x] References and governing docs (step 7): spec §4.2 reconciled on the branch
 - [x] Impact sweep (step 8): no TO DO/READY tickets remain
-- [ ] Commit message & MR presented for approval (step 9)
+- [x] Commit message & MR approved (step 9); main pushed first, `origin/main...HEAD` carried no `tickets/` path; PR #15 opened
 
 | id | severity | class | disposition | description | evidence | suggestion |
 |---|---|---|---|---|---|---|
@@ -108,3 +108,4 @@ cost: estimated S, actual S
 - 2026-11-09 — plan amended inline: Task 2 row argc 3 → 1. `procargs`'s first argument is argc, not a row id, so argc 3 with one argv string reads as a truncated buffer and the row could never match.
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet; new row red without fix)
 - 2026-11-09 — IN REVIEW → DONE: review: no blocking findings; 1 noted (N1)
+- 2026-11-09 — published: pushed feat/CS-014-darwin-case-insensitive, opened PR #15 (awaiting human merge)
