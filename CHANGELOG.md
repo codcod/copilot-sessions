@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-09
+
 ### Added
 
 - `list` shows sessions with their `ongoing`/`stale`/`closed` status, with filters, `--json`
@@ -41,4 +43,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directory is created with mode 0700. Breaking for scripts that parse error text or `created`,
   or that relied on `</dev/null` exiting 0 (CS-013).
 
-[Unreleased]: https://github.com/codcod/copilot-sessions/commits/main
+[Unreleased]: https://github.com/codcod/copilot-sessions/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/codcod/copilot-sessions/releases/tag/v0.1.0
