@@ -355,7 +355,7 @@ func ParseUint(s string) (int, bool) {
 }
 
 // DefaultAncestors returns this process and its ancestors up to (not including) PID 1.
-// On Linux and macOS it walks the real ancestry; elsewhere it returns only the process's own PID.
+// On Linux, macOS and Windows it walks the real ancestry; elsewhere it returns only the process's own PID.
 func DefaultAncestors() map[int]bool { return ancestorsFrom(os.Getpid()) }
 
 // readOpenState reads open-sessions-state.json; a missing or broken file reads as {}.
