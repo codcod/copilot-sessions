@@ -38,6 +38,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | medium | medium | M | [] |  |
 | CS-009 | macOS support: native process detection for ongoing/stale status | low | medium | M | [CS-008] |  |
 | CS-010 | Windows support: native process detection and open-file-safe clean/restore | low | medium | M | [CS-008, CS-009] |  |
 
@@ -47,7 +48,6 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | medium | medium | M | [] |  |
 
 ## DONE
 
