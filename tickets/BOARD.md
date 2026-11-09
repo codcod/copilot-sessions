@@ -9,7 +9,7 @@ hand — edit the tickets. Hand-written planning notes live in [`NOTES.md`](NOTE
 **WIP limits (per child-project):**
 - `copilot-sessions`: `3-in-development/` ≤ 1 · `4-in-review/` ≤ 1
 
-Last updated: 2026-11-08
+Last updated: 2026-11-09
 
 ## IN DEVELOPMENT
 
@@ -47,6 +47,7 @@ Last updated: 2026-11-08
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-011 | Publish .deb packages to Cloudsmith on release | medium | low | S | [] |  |
 
 ## DONE
 
