@@ -228,7 +228,38 @@ still works.
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+Review round 1 (2026-11-09). Orchestrator: the authoring session. Audits were delegated to an independent reviewer, and the correctness hunt ran through the host code-review tool.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F1 | blocking | correctness | — | OLD is matched without resolving symlinks, but Copilot records the resolved cwd. Moving via a symlinked path finds no sessions, yet the folder still moves. | cprobe: `cd /work/link/app` (link → `/data/real`); Copilot recorded `cwd: /data/real/app`; `move -n /work/link/app /work/app2` printed `No sessions to repoint.` | Match sessions against both the given and the symlink-resolved OLD. |
+| F2 | blocking | correctness | — | A quoted YAML value (`cwd: '/a: b'`) is never rebased, yet the command reports `Repointed 1 session` (only the DB row changes). | cprobe: Copilot wrote `cwd: '/work/a: b'`; after `move -y '/work/a: b' /work/ab` the YAML was unchanged, DB `/work/ab`. | Unquote single- and double-quoted scalars before matching; keep the style when writing back. |
+| F3 | blocking | correctness | — | NEW is written unquoted. A NEW containing `: `, ` #` or a newline produces YAML that Copilot parses differently, or extra keys. | Delegated reviewer: `move -y T/proj $'T/new\nname: pwned'` wrote a `name: pwned` line, exit 0; `'T/a: b'` wrote `cwd: T/a: b`. | Quote NEW when YAML needs it; refuse control characters (usage error). |
+| F4 | blocking | correctness | — | The ongoing check runs before the prompt and is not repeated. A Copilot started in OLD while the prompt waits is moved out from under it, and its workspace.yaml is rewritten while it is live. Same for a NEW created in the meantime. | unreproduced: needs a concurrent Copilot start. Traced: `runMove` ongoing check → `confirm` → `os.Rename` → `Repoint` (`internal/cli/move.go`); CS-017 decision 4. | Reload and re-check sessions and NEW after confirming. |
+| F5 | non-blocking | correctness | noted | A case-only rename (`App` → `app`) is refused on case-insensitive filesystems (Windows, default APFS). | Code review: `Under` is case-insensitive on Windows; `Lstat(NEW)` finds OLD on APFS. | Rename by hand in two steps; revisit if asked. |
+| F6 | non-blocking | correctness | noted | On Windows, `Rebase` cuts at the byte length of OLD after a case-insensitive match. Case folds that change byte length (non-ASCII) would garble the result. | `internal/session/path.go` `Rebase`; already marked with a `ponytail:` comment. | Compare runes if such paths show up. |
+| F7 | non-blocking | correctness | noted | The moved-by-hand path accepts a NEW that is a file or a dangling symlink. | Code review: `pathExists` uses `Lstat` only. | Require a directory at NEW. |
+| F8 | non-blocking | design | fixed inline | `repointDB` runs a SELECT per session although `Load` already filled `DBCwd`. | `internal/session/move.go` `repointDB`. | Rebase from `s.DBCwd` and only UPDATE. |
+| F9 | non-blocking | design | fixed inline | `_, all, err := load(...)` names the filtered result `all` and runs filters for nothing. | `internal/cli/move.go` `runMove`. | Call `session.Load` and `session.Sort` directly. |
+| F10 | non-blocking | design | noted | `pathExists` re-implements the Lstat/ErrNotExist check found in `backup.go` and `restore.go`. | `internal/backup/backup.go:74`, `internal/cli/restore.go:121`. | Share a helper if a fourth copy appears. |
+| F11 | non-blocking | test-gap | fixed inline | The per-session failure path of decision 9 (`failed:` line, siblings still repointed, exit 1) is untested. | `move_test.go` has no failure case. | Add a test with an unwritable session dir (skip on Windows and as root). |
+| F12 | non-blocking | test-gap | fixed inline | The interactive confirm path (answer `n` → `Aborted.`, nothing moved) is untested. | Every move test passes `-y` or `-n`. | Add one TTY test with stdin `n`. |
+| F13 | non-blocking | correctness | noted | `rename(dir, emptydir)` on Unix replaces an empty NEW created between the check and the rename. F4's re-check narrows the window but does not close it. | unreproduced: needs a concurrent creator. Traced: `pathExists(newPath)` → `os.Rename`. | `renameat2(RENAME_NOREPLACE)` is Linux-only; not worth it. |
+
+Disposition summary: 4 blocking (F1–F4) → rework; 9 non-blocking: 4 fixed inline (F8, F9, F11, F12), 5 noted (F5, F6, F7, F10, F13), 0 new tickets.
+cost: estimated M, actual M
+
+Verdict: rework (F1–F4).
+
+- [x] Reviewer independence settled (step 0): delegated to an independent reviewer (steps 1–4a, hunt: angle 7 only); none of its findings discarded.
+- [x] In-tree stale-branch check (step 0a): `pickle doctor` warned that the branch was behind main; rebased; clean.
+- [x] Implementation audit (steps 1, 2): the delegated reviewer re-ran `just lint && just test && just test-linux` (green) and the cprobe check (`/work/rvp` → `/work/rvq`); Tasks 1–5 and decisions 1–10 were met before these findings.
+- [x] Correctness hunt (step 3): host tool (`/code-review medium main...feat/CS-017-move-command`) run by the orchestrator, 9 findings, 0 discarded; angle 7 run separately by the delegated reviewer; F1 and F2 reproduced in cprobe by the orchestrator, F3 by the delegated reviewer; F4, F13 unreproduced with the traced path.
+- [x] Consistency audit (step 4): delegated, clean.
+- [x] Documentation audit (step 4a): delegated; README, spec §6.6/§7/§8 and CHANGELOG are covered; no docs build is configured.
+- [ ] Docs-readability pass (step 4b): conscious skip; optional.
+- [x] Findings recorded (step 5).
+- [x] Ticket moved to `5-rework/` (step 6).
 
 ## History
 
@@ -238,3 +269,4 @@ still works.
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up, branch feat/CS-017-move-command
 - 2026-11-09 — plan amended inline: decision 3 also selects by DB `sessions.cwd` (new `Session.DBCwd`), found in the cprobe check, where a session whose YAML was already repointed kept a stale DB row and a rerun skipped it, which broke decision 9; covered by `TestMoveRerunFinishesDB`
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green: lint, test, test-linux, cprobe real-data check
+- 2026-11-09 — IN REVIEW → REWORK: 4 blocking findings (F1-F4)
