@@ -58,7 +58,7 @@ In `internal/session/session_darwin.go` `argvHasCopilot`, use `bytes.Contains(by
 
 #### Task 2 — tests
 In `internal/session/session_darwin_test.go` `TestProcargsMatch`:
-- add a row that expects a match for an upper-case argv: `procargs(3, "/usr/local/bin/COPILOT", []string{"COPILOT"}, nil)`;
+- add a row that expects a match for an upper-case argv: `procargs(1, "/usr/local/bin/COPILOT", []string{"COPILOT"}, nil)`;
 - change the live-process `want` (line 59) to `strings.Contains(strings.ToLower(a), "copilot")` so it agrees with the matcher.
 
 #### Task 3 — spec
@@ -85,3 +85,5 @@ Commit `fix(session): match copilot case-insensitively on macOS (CS-014)`. Then 
 - 2026-11-09 — created (TO DO). source: pickle ticket new
 - 2026-11-09 — TO DO → READY: plan complete
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no findings
+- 2026-11-09 — plan amended inline: Task 2 row argc 3 → 1. `procargs`'s first argument is argc, not a row id, so argc 3 with one argv string reads as a truncated buffer and the row could never match.
+- 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet; new row red without fix)
