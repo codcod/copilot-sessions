@@ -41,8 +41,13 @@ indirect through modernc sqlite) and so adds no new download:
 
 - parent PID: `unix.SysctlKinfoProc("kern.proc.pid", pid)` → `.Eproc.Ppid`;
 - command line: `unix.SysctlRaw("kern.procargs2", pid)`. This is the full argument list.
-  `p_comm` alone isn't enough, because Copilot runs as `node` and the `copilot` text is in
-  the script path. The buffer carries the **environment** after argv, so it must be parsed
+  Since Copilot CLI 1.0.x the lock PID is a native per-platform binary
+  (`…/@github/copilot-darwin-<arch>/copilot`), so `p_comm` would match today. argv is still
+  used because it fails safe. If some install has node hosting the JS, `p_comm` reads
+  `node`, the live session shows as `stale`, and `clean` deletes it (data loss). An argv miss
+  can only make a session show as `ongoing`, which is harmless. argv also mirrors Linux's
+  `cmdline`, and it keeps the `copilot-test/sleep` test helper working (applicability gate F1,
+  2026-11-09). The buffer carries the **environment** after argv, so it must be parsed
   (argc, exec path, argv) and only argv matched. Otherwise any process with `COPILOT_HOME`
   set reads as Copilot (found at refinement, 2026-11-08).
 
@@ -89,6 +94,14 @@ print nothing. Merging is the human's.
    Record the result as a dated `plan amended inline:` History line. **If the lock files are
    absent or named differently, or the PID isn't the Copilot process, stop.** Move the ticket
    back to `1-to-do/` for re-description.
+
+   **Met by proxy, 2026-11-09 (user decision).** Copilot CLI 1.0.107 in a Linux Docker
+   container (no login needed) created `session-state/<uuid>/{inuse.<pid>.lock,
+   inuse.<pid>.hold, workspace.yaml}`. The lock PID is the native
+   `@github/copilot-linux-arm64/copilot` binary, and its parent is `node /usr/local/bin/copilot`.
+   The darwin build is the same release built per platform. The real-macOS check moves to the
+   manual acceptance step. **If it fails there, stop and move the ticket back to `1-to-do/`.**
+   The `.hold` file needs nothing, because `lockPIDs` matches only `inuse.*.lock` (F2).
 
 ### Confirmed design decisions (do not deviate without asking)
 
@@ -140,7 +153,8 @@ Add `internal/session/session_darwin.go`:
 - `internal/session/session_darwin_test.go`: table tests for `procargsArgv` and the match.
   Cover a real-shaped buffer whose argv has `/usr/local/bin/copilot`, which matches. Cover one
   whose argv is `node /x/y.js` with env `COPILOT_HOME=/h`, which must **not** match. Cover
-  truncated and zero-argc buffers, which return nil.
+  truncated and zero-argc buffers, which return nil. Name the tests so `-run Procargs`
+  selects them (e.g. `TestProcargsArgv`, `TestProcargsMatch`).
 - Un-skip the live-process tests on darwin. In `internal/session/session_test.go` (the
   `TestLoadOngoingLinux` skip and `TestDefaultAncestors`'s early return), widen the condition
   to `linux || darwin` and rename the test to `TestLoadOngoing`. In
@@ -163,13 +177,16 @@ go mod tidy && git diff --exit-code go.sum   # x/sys/unix becomes direct, go.sum
 just lint && just test                       # on the Mac
 go test -count=1 -v -run 'Ongoing|Ancestors|Procargs' ./internal/... 2>&1 | grep -E '^(--- |ok|FAIL)'
 #   -> TestLoadOngoing, TestDefaultAncestors, TestCleanOngoing, procargs tests: PASS, none SKIP
+#   (TestDefaultAncestors returns early rather than skipping, so "no SKIP" proves nothing
+#   for it. Its darwin path is covered only because task 3 widens its condition.)
 just test-linux                              # Linux unchanged
 GOOS=windows GOARCH=amd64 go vet ./...       # fallback still compiles
 just dist-check && just dist-snapshot && ls dist/*.tar.gz dist/*.deb
 #   -> four archives: darwin_{amd64,arm64}, linux_{amd64,arm64}; two .deb (amd64, arm64) only
 ```
 
-Manual check with a real Copilot session. From a shell inside Copilot,
+Manual check with a real Copilot session on macOS (this is also prerequisite 2's deferred
+check; on failure, back to `1-to-do/`). Install Copilot CLI on the Mac and start a session first. From a shell inside Copilot,
 `./copilot-sessions list` shows that session as `ongoing` with the "(this session)" marker.
 From an outside terminal it shows `ongoing` without the marker. After Copilot exits with a
 leftover lock it shows `stale`. CI's `test-macos` job is green on the PR.
@@ -177,11 +194,15 @@ leftover lock it shows `stale`. CI's `test-macos` job is green on the PR.
 ### Docs update (mandatory when user-facing)
 
 - `development/spec.md:14`: the platform line becomes Linux (WSL) and macOS, with process
-  detection from `/proc` on Linux and sysctl on macOS.
+  detection from `/proc` on Linux and sysctl on macOS. `development/spec.md:93`: the
+  `ongoing` definition ("`/proc/<pid>/cmdline` contains `copilot`") gains "or, on macOS, the
+  argv from `kern.procargs2`" (F3).
 - `AGENTS.md` *Platform*: macOS is now a target. `/proc` tests are now "live-process tests";
   they run on Linux and macOS. `just test-linux` is still needed for the Linux path.
-- `README.md`: release archives include macOS; mention that unsigned binaries need
-  `xattr -d com.apple.quarantine copilot-sessions` after a browser download.
+- `README.md`: rewrite lines 14–15 ("Status detection reads `/proc`, so macOS and Windows are
+  not supported yet") to say only Windows is unsupported, and extend the Linux-only download
+  text (~127–135) to the darwin archives. Mention that unsigned binaries need
+  `xattr -d com.apple.quarantine copilot-sessions` after a browser download (F4).
 - `CHANGELOG.md` `[Unreleased]` → add an `### Added` section above the existing `### Changed`: "macOS support: correct ongoing/stale status
   and darwin release archives (CS-009)."
 
@@ -207,3 +228,4 @@ leftover lock it shows `stale`. CI's `test-macos` job is green on the PR.
 - 2026-11-08 — created (TO DO). source: review: CS-008 platform exploration found /proc use confined to two functions; macOS portable via x/sys/unix
 - 2026-11-08 — TO DO → READY: plan complete
 - 2026-11-09 — re-refined after CS-013 (stays READY): line refs, test-skip and goreleaser/CI details updated to the post-CS-013 tree; approach and decisions unchanged
+- 2026-11-09 — plan amended inline: applicability gate (independent sub-agent) found no blocking issues. F1 updated the procargs2 rationale for the native binary; F3/F4 added spec:93 and README 14–15/127–135; F5 recorded prerequisite 2 as met by proxy (Docker, Copilot CLI 1.0.107) and moved the real-macOS check to manual acceptance; F6 tightened the acceptance notes. F2 and F8 closed. F7 noted on CS-010.

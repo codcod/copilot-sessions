@@ -252,3 +252,4 @@ tab completion.
 - 2026-11-08 — created (TO DO). source: review: CS-008 platform exploration; Windows split from CS-009 at user request
 - 2026-11-08 — TO DO → READY: plan complete
 - 2026-11-09 — re-refined after CS-013 (stays READY): line refs and restore test seam updated to the post-CS-013 tree; added decision 10 + task 2b (Unix-permission tests skip on Windows); approach otherwise unchanged
+- 2026-11-09 — note (CS-009 applicability gate F7): Copilot CLI 1.0.x runs as a native per-platform binary (`@github/copilot-win32-<arch>/copilot.exe`), not `node.exe`. Re-check decision 3's rationale at pickup; `ExeFile` may suffice, but argv fails safe (see CS-009 F1).
