@@ -96,8 +96,8 @@ none
    never touched.
 3. **Matching is by path prefix, as `--cwd` does.** A value is rewritten when it is OLD or
    below it (`/a/b` matches `/a/b/c`, not `/a/bc`; case-insensitive on Windows) and becomes
-   `NEW + rest`. A session is selected when its `cwd` (YAML, else DB) **or** its `git_root`
-   is under OLD. Each field is then rewritten only if it is under OLD itself.
+   `NEW + rest`. A session is selected when its `cwd` (YAML, else DB), its `git_root` **or**
+   its DB `sessions.cwd` is under OLD. Each field is then rewritten only if it is under OLD itself.
 4. **Safety follows `clean`.** `-n` is a dry run, `[y/N]` asks for confirmation (`-y` skips
    it), and there is no automatic backup (the help text points to `backup`). The command
    refuses and changes nothing when a selected session is `ongoing`, including the session
@@ -236,3 +236,5 @@ still works.
 - 2026-11-09 — TO DO → READY: plan complete; defaults confirmed by user
 - 2026-11-09 — plan amended inline: applicability gate (independent sub-agent) found no blocking findings; folded in the test sibling `projX`, the ongoing-test skip, sized load, a last-chance ctx check, the TestHelp/spec §7 entries and the Windows test file; noted quoted-YAML and YAML-over-DB selection as known limits
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up, branch feat/CS-017-move-command
+- 2026-11-09 — plan amended inline: decision 3 also selects by DB `sessions.cwd` (new `Session.DBCwd`), found in the cprobe check, where a session whose YAML was already repointed kept a stale DB row and a rerun skipped it, which broke decision 9; covered by `TestMoveRerunFinishesDB`
+- 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green: lint, test, test-linux, cprobe real-data check

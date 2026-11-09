@@ -13,18 +13,18 @@ Last updated: 2026-11-09
 
 ## IN DEVELOPMENT
 
+### copilot-sessions (0/1)
+
+| id | title | depends-on |
+|---|---|---|
+
+## IN REVIEW
+
 ### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
 | CS-017 | move command: relocate a project directory and repoint its sessions | [] |
-
-## IN REVIEW
-
-### copilot-sessions (0/1)
-
-| id | title | depends-on |
-|---|---|---|
 
 ## REWORK
 
