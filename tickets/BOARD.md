@@ -20,11 +20,10 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-011 | Publish .deb packages to Cloudsmith on release | [] |
 
 ## REWORK
 
@@ -63,6 +62,7 @@ Last updated: 2026-11-09
 | CS-006 | justfile for build, test, lint and install | yes — merged to main (PR #2, d1336c3, https://github.com/codcod/copilot-sessions/commit/d1336c3) |
 | CS-007 | backup robustness: atomic archive, live-file races and error reporting | yes — merged to main (PR #6, e8e6b91, https://github.com/codcod/copilot-sessions/commit/e8e6b91) |
 | CS-008 | Release process: tag-driven goreleaser builds, CI and changelog | yes — merged to main (PR #8, 5c4fdfe, https://github.com/codcod/copilot-sessions/commit/5c4fdfe) |
+| CS-011 | Publish .deb packages to Cloudsmith on release | no — publish-gated |
 
 ## DROPPED
 
