@@ -230,3 +230,4 @@ still works.
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: user asked for a way to move a project folder Copilot was used in; findings from a Copilot CLI 1.0.108 probe in Docker
+- 2026-11-09 — TO DO → READY: plan complete; defaults confirmed by user
