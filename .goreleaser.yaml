@@ -8,6 +8,11 @@ project_name: copilot-sessions
 before:
   hooks:
     - go test ./...
+    # Shell completion scripts for the .deb (nfpms contents below). Hooks run
+    # without a shell, so the redirects need sh -c. completions/ is gitignored.
+    - sh -c 'mkdir -p completions && go run ./cmd/copilot-sessions completion bash > completions/copilot-sessions.bash'
+    - sh -c 'go run ./cmd/copilot-sessions completion zsh > completions/_copilot-sessions'
+    - sh -c 'go run ./cmd/copilot-sessions completion fish > completions/copilot-sessions.fish'
 
 builds:
   - id: copilot-sessions
@@ -29,6 +34,29 @@ archives:
     formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+# Debian/Ubuntu packages (linux builds only), attached to the release. The
+# release workflow then pushes them to the Cloudsmith apt repository
+# codcod/copilot-sessions (see RELEASING.md).
+nfpms:
+  - id: copilot-sessions-deb
+    package_name: copilot-sessions
+    ids: [copilot-sessions]
+    formats: [deb]
+    vendor: codcod
+    homepage: https://github.com/codcod/copilot-sessions
+    maintainer: Nikos <nikos@linux.com>
+    description: List, clean, back up and restore GitHub Copilot CLI sessions
+    license: MIT
+    bindir: /usr/bin
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+    contents:
+      - src: completions/copilot-sessions.bash
+        dst: /usr/share/bash-completion/completions/copilot-sessions
+      - src: completions/_copilot-sessions
+        dst: /usr/share/zsh/vendor-completions/_copilot-sessions
+      - src: completions/copilot-sessions.fish
+        dst: /usr/share/fish/vendor_completions.d/copilot-sessions.fish
 
 checksum:
   name_template: "checksums.txt"
