@@ -1,22 +1,22 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/codcod/copilot-sessions/internal/backup"
-	"github.com/codcod/copilot-sessions/internal/filter"
 	"github.com/codcod/copilot-sessions/internal/session"
 )
 
-func newRestore(env Env) *cobra.Command {
+func newRestore(env *Env) *cobra.Command {
 	var yes bool
 	cmd := &cobra.Command{
 		Use:   "restore [FILE|latest]",
@@ -25,33 +25,34 @@ func newRestore(env Env) *cobra.Command {
 		Example: `  copilot-sessions restore latest
   copilot-sessions restore ~/.copilot-backups/copilot-sessions-20261031-120000.tar.gz
   copilot-sessions restore`,
-		Args: func(cmd *cobra.Command, args []string) error {
-			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
-				return usageError{err}
-			}
-			return nil
-		},
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runRestore(env, args, yes)
+		Args: usageArgs(cobra.MaximumNArgs(1)),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRestore(cmd.Context(), env, args, yes)
 		},
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmation")
 	return cmd
 }
 
-// rename is os.Rename; tests swap it to force a failure mid-restore.
-var rename = os.Rename
-
 // runRestore follows the script's cmd_restore step by step (spec §6.4).
-func runRestore(env Env, args []string, yes bool) error {
-	source, err := restoreSource(env, args)
+func runRestore(ctx context.Context, env *Env, args []string, yes bool) error {
+	return restore(ctx, env, args, yes, os.Rename)
+}
+
+// restore is runRestore with the rename swapItems uses; tests pass a failing one.
+func restore(ctx context.Context, env *Env, args []string, yes bool, rename func(string, string) error) error {
+	source, err := restoreSource(ctx, env, args)
 	if err != nil {
 		return err
 	}
-	if fi, err := os.Stat(source); err != nil || !fi.Mode().IsRegular() {
+	fi, err := os.Stat(source)
+	if errors.Is(err, fs.ErrNotExist) || err == nil && !fi.Mode().IsRegular() {
 		return fmt.Errorf("backup not found: %s", source)
 	}
-	isBackup, n, err := backup.Inspect(source)
+	if err != nil {
+		return fmt.Errorf("backup %s: %w", source, err)
+	}
+	isBackup, n, err := backup.Inspect(ctx, source)
 	if err != nil {
 		return err
 	}
@@ -67,7 +68,7 @@ func runRestore(env Env, args []string, yes bool) error {
 	fmt.Fprintf(w, "  Backup:  %s (%s)\n", source, plural(n, "session"))
 	fmt.Fprintf(w, "  Current: %s (%s will be deleted)\n", env.Home, plural(len(current), "session"))
 	fmt.Fprintln(w, "  Close all running Copilot CLI sessions first; they may overwrite restored data.")
-	ok, err := confirm(env, "Continue?", yes)
+	ok, err := confirm(ctx, env, "Continue?", yes)
 	if err != nil {
 		return err
 	}
@@ -87,13 +88,17 @@ func runRestore(env Env, args []string, yes bool) error {
 	keepTmp := false
 	defer func() {
 		if !keepTmp {
-			os.RemoveAll(tmp)
+			_ = os.RemoveAll(tmp) // best effort: a leftover tmp* is not a session or an item
 		}
 	}()
-	if err := backup.Extract(source, tmp); err != nil {
+	if err := backup.Extract(ctx, source, tmp); err != nil {
 		return err
 	}
-	if keepTmp, err = swapItems(env.Home, tmp); err != nil {
+	// Last chance to cancel: the swap is a few fast renames, undone only on failure.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if keepTmp, err = swapItems(env.Home, tmp, rename); err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Restored %s from %s\n", plural(n, "session"), source)
@@ -104,7 +109,8 @@ func runRestore(env Env, args []string, yes bool) error {
 // Deliberate departure from the script, which deletes before moving: on any failure
 // every move is undone, so home is left as it was; the old items go with tmp on success.
 // keepTmp reports a rollback that did not finish: tmp then holds data that must survive.
-func swapItems(home, tmp string) (keepTmp bool, err error) {
+// rename is os.Rename outside tests.
+func swapItems(home, tmp string, rename func(string, string) error) (keepTmp bool, err error) {
 	old := filepath.Join(tmp, "old")
 	if err := os.MkdirAll(old, 0o700); err != nil {
 		return false, err
@@ -138,7 +144,7 @@ func swapItems(home, tmp string) (keepTmp bool, err error) {
 			err = fmt.Errorf("restore failed, nothing changed: %w", err)
 		}
 	}()
-	for _, item := range backup.Items {
+	for _, item := range backup.Items() {
 		dest := filepath.Join(home, item)
 		names := []string{item}
 		if item == session.DBFile {
@@ -157,9 +163,9 @@ func swapItems(home, tmp string) (keepTmp bool, err error) {
 }
 
 // restoreSource resolves FILE, latest, or the interactive pick, as the script's pick_backup does.
-func restoreSource(env Env, args []string) (string, error) {
+func restoreSource(ctx context.Context, env *Env, args []string) (string, error) {
 	if len(args) > 0 && args[0] != "latest" {
-		return filter.ExpandUser(args[0]), nil
+		return expandUser(args[0]), nil
 	}
 	backups, err := backup.List(env.BackupDir)
 	if err != nil {
@@ -176,13 +182,17 @@ func restoreSource(env Env, args []string) (string, error) {
 	}
 	printBackups(env.Stderr, backups)
 	fmt.Fprint(env.Stderr, "Restore which backup? [1] ")
-	choice := strings.TrimSpace(readLine(env))
+	line, err := readLine(ctx, env)
+	if err != nil {
+		return "", err
+	}
+	choice := strings.TrimSpace(line)
 	if choice == "" {
 		choice = "1"
 	}
-	i, err := strconv.Atoi(choice)
-	if err != nil || strings.ContainsAny(choice, "+-") || i < 1 || i > len(backups) {
-		return "", fmt.Errorf("invalid choice '%s'", choice)
+	i, ok := session.ParseUint(choice)
+	if !ok || i < 1 || i > len(backups) {
+		return "", fmt.Errorf("invalid choice %q", choice)
 	}
 	return backups[i-1], nil
 }

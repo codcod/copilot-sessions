@@ -3,7 +3,9 @@ package backup
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -79,7 +81,7 @@ func TestCreate(t *testing.T) {
 	}
 
 	target := filepath.Join(fx.BackupDir, "nested", "b.tar.gz")
-	if err := Create(fx.Home, target, true); err != nil {
+	if err := Create(t.Context(), fx.Home, target, true); err != nil {
 		t.Fatal(err)
 	}
 	if fi, _ := os.Stat(target); fi.Mode().Perm() != 0o600 {
@@ -141,7 +143,7 @@ func TestCreate(t *testing.T) {
 func TestCreateEmptyHome(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "b.tar.gz")
-	if err := Create(filepath.Join(dir, "none"), target, true); err != nil {
+	if err := Create(t.Context(), filepath.Join(dir, "none"), target, true); err != nil {
 		t.Fatal(err)
 	}
 	if hdrs, _ := readArchive(t, target); len(hdrs) != 0 {
@@ -176,7 +178,7 @@ func TestCreateGrowingFile(t *testing.T) {
 	defer func() { close(stop); <-done; f.Close() }()
 	for i := range 5 {
 		target := filepath.Join(t.TempDir(), "b.tar.gz")
-		if err := Create(home, target, true); err != nil {
+		if err := Create(t.Context(), home, target, true); err != nil {
 			t.Fatalf("run %d: %v", i, err)
 		}
 		if hdrs, _ := readArchive(t, target); hdrs["session-state/s/events.jsonl"] == nil {
@@ -198,7 +200,7 @@ func TestCreateFailureLeavesNothing(t *testing.T) {
 	}
 	dir := t.TempDir()
 	target := filepath.Join(dir, "b.tar.gz")
-	if err := Create(home, target, true); err == nil {
+	if err := Create(t.Context(), home, target, true); err == nil {
 		t.Fatal("want error")
 	}
 	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
@@ -212,7 +214,7 @@ func TestCreateNoClobber(t *testing.T) {
 	if err := os.WriteFile(target, []byte("old"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := Create(home, target, false); err == nil || !strings.Contains(err.Error(), "backup already exists: "+target) {
+	if err := Create(t.Context(), home, target, false); err == nil || !strings.Contains(err.Error(), "backup already exists: "+target) {
 		t.Fatalf("err %v", err)
 	}
 	if b, _ := os.ReadFile(target); string(b) != "old" {
@@ -221,7 +223,7 @@ func TestCreateNoClobber(t *testing.T) {
 	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
 		t.Errorf("left behind: %v", entries)
 	}
-	if err := Create(home, target, true); err != nil {
+	if err := Create(t.Context(), home, target, true); err != nil {
 		t.Fatal(err)
 	}
 	readArchive(t, target)
@@ -257,19 +259,38 @@ func TestListErrors(t *testing.T) {
 }
 
 // Without hard-link support the no-clobber publish falls back to O_EXCL + rename.
-func TestCreateNoHardLinks(t *testing.T) {
-	link = func(string, string) error { return &os.LinkError{Op: "link", Err: syscall.EPERM} }
-	t.Cleanup(func() { link = os.Link })
-	home, dir := t.TempDir(), t.TempDir()
+func TestMoveNewNoHardLinks(t *testing.T) {
+	noLink := func(string, string) error { return &os.LinkError{Op: "link", Err: syscall.EPERM} }
+	dir := t.TempDir()
 	target := filepath.Join(dir, "b.tar.gz")
-	if err := Create(home, target, false); err != nil {
+	tmp := filepath.Join(dir, ".a.tmp")
+	os.WriteFile(tmp, []byte("one"), 0o600)
+	if err := moveNew(tmp, target, noLink); err != nil {
 		t.Fatal(err)
 	}
-	readArchive(t, target)
-	if err := Create(home, target, false); err == nil || !strings.Contains(err.Error(), "backup already exists: "+target) {
-		t.Fatalf("err %v", err)
+	if b, _ := os.ReadFile(target); string(b) != "one" {
+		t.Errorf("target = %q", b)
 	}
-	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+	os.WriteFile(tmp, []byte("two"), 0o600)
+	if err := moveNew(tmp, target, noLink); !errors.Is(err, fs.ErrExist) {
+		t.Fatalf("err %v, want ErrExist", err)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "one" {
+		t.Errorf("target clobbered: %q", b)
+	}
+}
+
+// A cancelled ctx stops Create and leaves no temp file next to the target (CS-013).
+func TestCreateCancelled(t *testing.T) {
+	// No DB, so the snapshot is skipped and the archive walk is what sees the cancel.
+	home, dir := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(home, "session-state", "abc"), 0o755)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := Create(ctx, home, filepath.Join(dir, "b.tar.gz"), false); !errors.Is(err, context.Canceled) {
+		t.Fatal("cancelled Create: no error")
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
 		t.Errorf("left behind: %v", entries)
 	}
 }

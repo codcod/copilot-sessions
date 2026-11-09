@@ -2,6 +2,8 @@ package backup
 
 import (
 	"archive/tar"
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,13 +27,13 @@ func TestExtractModesAndLinks(t *testing.T) {
 		reg("wide", 0o666),
 		reg("ro", 0o400),
 	)
-	isBackup, n, err := Inspect(archive)
+	isBackup, n, err := Inspect(t.Context(), archive)
 	if err != nil || !isBackup || n != 1 {
 		t.Fatalf("inspect: %v %v %d", err, isBackup, n)
 	}
 
 	dest := t.TempDir()
-	if err := Extract(archive, dest); err != nil {
+	if err := Extract(t.Context(), archive, dest); err != nil {
 		t.Fatal(err)
 	}
 	for name, want := range map[string]os.FileMode{"suid": 0o755, "wide": 0o644, "ro": 0o600} {
@@ -54,5 +56,15 @@ func TestExtractModesAndLinks(t *testing.T) {
 		if b, err := os.ReadFile(filepath.Join(dest, name)); err != nil || string(b) != "data\n" {
 			t.Errorf("%s: %q %v", name, b, err)
 		}
+	}
+}
+
+func TestExtractCancelled(t *testing.T) {
+	archive := filepath.Join(t.TempDir(), "a.tar.gz")
+	testfix.Archive(t, archive, tar.Header{Typeflag: tar.TypeDir, Name: "session-state/", Mode: 0o755})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := Extract(ctx, archive, t.TempDir()); !errors.Is(err, context.Canceled) {
+		t.Errorf("err %v, want context.Canceled", err)
 	}
 }

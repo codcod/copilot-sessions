@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,34 +17,51 @@ var dbSessionTables = []string{
 }
 
 // Delete removes ss: their directories, DB rows and UI-state entries (spec §6.2).
-// With everything set, the UI state is cleared completely.
-func Delete(home string, ss []Session, everything bool) error {
+// It is the point of no return: once started it ignores ctx cancellation and runs to
+// completion, so callers check ctx before calling.
+func Delete(ctx context.Context, home string, ss []Session) error {
+	return deleteSessions(ctx, home, ss, false)
+}
+
+// DeleteAll is Delete for every session of home: the UI state is cleared completely.
+func DeleteAll(ctx context.Context, home string, ss []Session) error {
+	return deleteSessions(ctx, home, ss, true)
+}
+
+func deleteSessions(ctx context.Context, home string, ss []Session, everything bool) error {
+	ctx = context.WithoutCancel(ctx)
 	ids := map[string]bool{}
 	for _, s := range ss {
 		ids[s.ID] = true
 		if s.Dir != "" {
-			os.RemoveAll(s.Dir) // errors ignored, like shutil.rmtree(ignore_errors=True)
+			_ = os.RemoveAll(s.Dir) // errors ignored, like shutil.rmtree(ignore_errors=True)
 		}
 	}
-	if err := pruneDB(home, ids); err != nil {
+	if err := pruneDB(ctx, home, ids); err != nil {
 		return err
 	}
 	return pruneUIState(home, ids, everything)
 }
 
-func pruneDB(home string, ids map[string]bool) error {
+func pruneDB(ctx context.Context, home string, ids map[string]bool) error {
+	if len(ids) == 0 {
+		return nil
+	}
 	db, err := OpenDB(home)
-	if db == nil || err != nil || len(ids) == 0 {
+	if errors.Is(err, ErrNoDB) {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 	defer db.Close()
-	tx, err := db.BeginTx(context.Background(), nil)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("prune %s: %w", DBFile, err)
 	}
 	defer tx.Rollback()
 	exec := func(q string, args ...any) error {
-		if _, err := tx.Exec(q, args...); err != nil {
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 			return fmt.Errorf("prune %s: %w", DBFile, err)
 		}
 		return nil
@@ -56,7 +74,7 @@ func pruneDB(home string, ids map[string]bool) error {
 			return err
 		}
 	}
-	rows, err := tx.Query("SELECT name FROM sqlite_master")
+	rows, err := tx.QueryContext(ctx, "SELECT name FROM sqlite_master")
 	if err != nil {
 		return fmt.Errorf("prune %s: %w", DBFile, err)
 	}
@@ -90,7 +108,6 @@ func pruneDB(home string, ids map[string]bool) error {
 }
 
 func pruneUIState(home string, ids map[string]bool, everything bool) error {
-
 	open := filepath.Join(home, OpenState)
 	if fi, err := os.Stat(open); err == nil && fi.Mode().IsRegular() {
 		data, err := readJSONFile(open)
@@ -110,7 +127,7 @@ func pruneUIState(home string, ids map[string]bool, everything bool) error {
 		}
 	}
 
-	files, _ := filepath.Glob(filepath.Join(home, SidebarDir, "*.json"))
+	files, _ := filepath.Glob(filepath.Join(home, SidebarDir, "*.json")) // only ErrBadPattern, impossible here
 	for _, f := range files {
 		data, err := readJSONFile(f)
 		if err != nil {

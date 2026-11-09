@@ -9,7 +9,7 @@ go_version := `awk '/^go /{split($2, v, "."); print v[1] "." v[2]}' go.mod`
 # Build the binary (no CGO)
 [group('build')]
 build:
-    CGO_ENABLED=0 go build -ldflags "-X main.Version={{version}}" -o {{bin}} ./cmd/copilot-sessions
+    CGO_ENABLED=0 go build -ldflags "-X main.version={{version}}" -o {{bin}} ./cmd/copilot-sessions
 
 # Run tests
 [group('qa')]

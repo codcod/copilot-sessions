@@ -1,7 +1,10 @@
 package session
 
 import (
+	"context"
 	"database/sql"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -28,8 +31,16 @@ func byID(t *testing.T, ss []Session) map[string]Session {
 
 func TestLoadFixture(t *testing.T) {
 	fx := testfix.Build(t)
-	ss, err := Load(fx.Home, map[int]bool{}, true)
+	ss, err := Load(t.Context(), fx.Home, map[int]bool{})
 	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range ss {
+		if s.Size != 0 {
+			t.Errorf("%s sized by Load", s.ID)
+		}
+	}
+	if err := FillSizes(t.Context(), ss); err != nil {
 		t.Fatal(err)
 	}
 	got := byID(t, ss)
@@ -42,7 +53,7 @@ func TestLoadFixture(t *testing.T) {
 		}
 	}
 
-	wantStatus := map[string]string{
+	wantStatus := map[string]Status{
 		testfix.Titled: "closed", testfix.EmptyNoEvents: "closed", testfix.EmptyStartShutdown: "closed",
 		testfix.Stale: "stale", testfix.DBOnly: "closed", testfix.Ongoing: "stale",
 	}
@@ -67,25 +78,22 @@ func TestLoadFixture(t *testing.T) {
 		t.Errorf("stale = %+v (DB fills empty fields)", stale)
 	}
 	quoted := got[testfix.EmptyStartShutdown]
-	if quoted.Updated == nil || !quoted.Updated.Equal(time.Date(2026, 10, 15, 9, 30, 0, 123e6, time.UTC)) {
+	if quoted.Updated.IsZero() || !quoted.Updated.Equal(time.Date(2026, 10, 15, 9, 30, 0, 123e6, time.UTC)) {
 		t.Errorf("quoted created_at = %v", quoted.Updated)
 	}
 	dbOnly := got[testfix.DBOnly]
-	if dbOnly.Dir != "" || dbOnly.Name != "Only in the DB" || *dbOnly.Size != 0 || dbOnly.Updated == nil {
+	if dbOnly.Dir != "" || dbOnly.Name != "Only in the DB" || dbOnly.Size != 0 || dbOnly.Updated.IsZero() {
 		t.Errorf("db-only = %+v", dbOnly)
 	}
 	if !got[testfix.Ongoing].Busy {
 		t.Error("ongoing not busy")
 	}
-	if *titled.Size == 0 {
+	if titled.Size == 0 {
 		t.Error("titled size is 0")
 	}
 
-	ss, _ = Load(fx.Home, map[int]bool{testfix.StalePID: true}, false)
+	ss, _ = Load(t.Context(), fx.Home, map[int]bool{testfix.StalePID: true})
 	for _, s := range ss {
-		if s.Size != nil {
-			t.Errorf("%s size computed without withSize", s.ID)
-		}
 		if s.Current != (s.ID == testfix.Stale) {
 			t.Errorf("%s current = %v", s.ID, s.Current)
 		}
@@ -97,7 +105,7 @@ func TestLoadOngoingLinux(t *testing.T) {
 		t.Skip("needs /proc")
 	}
 	fx := testfix.Build(t)
-	ss, err := Load(fx.Home, map[int]bool{fx.OngoingPID: true}, false)
+	ss, err := Load(t.Context(), fx.Home, map[int]bool{fx.OngoingPID: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,15 +145,15 @@ func TestLoadFallbacks(t *testing.T) {
 	mtime := time.Date(2026, 5, 6, 7, 8, 9, 0, time.UTC)
 	os.Chtimes(mk("nomtime", "name: x\nupdated_at: garbage\n"), mtime, mtime)
 	mk("zoneless", "updated_at: '2026-11-01 10:00:00.25'\r\ncreated_at: 2020-01-01T00:00:00Z\r\n")
-	ss, err := Load(home, nil, false)
+	ss, err := Load(t.Context(), home, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := byID(t, ss)
-	if u := got["nomtime"].Updated; u == nil || !u.Equal(mtime) {
+	if u := got["nomtime"].Updated; u.IsZero() || !u.Equal(mtime) {
 		t.Errorf("mtime fallback = %v", u)
 	}
-	if u := got["zoneless"].Updated; u == nil || !u.Equal(time.Date(2026, 11, 1, 10, 0, 0, 25e7, time.UTC)) {
+	if u := got["zoneless"].Updated; u.IsZero() || !u.Equal(time.Date(2026, 11, 1, 10, 0, 0, 25e7, time.UTC)) {
 		t.Errorf("zone-less = %v", u)
 	}
 	if got["zoneless"].Status != "closed" {
@@ -154,10 +162,10 @@ func TestLoadFallbacks(t *testing.T) {
 
 	// A DB without a sessions table is an error.
 	os.WriteFile(filepath.Join(home, DBFile), nil, 0o644)
-	if _, err := Load(home, nil, false); err == nil {
+	if _, err := Load(t.Context(), home, nil); err == nil {
 		t.Error("missing sessions table: no error")
 	}
-	if turns, err := HasTurns(home); err != nil || len(turns) != 0 {
+	if turns, err := HasTurns(t.Context(), home); err != nil || len(turns) != 0 {
 		t.Errorf("missing turns table: %v, %v", turns, err)
 	}
 }
@@ -171,14 +179,14 @@ func TestParseTime(t *testing.T) {
 		"2026-11-06 05:20:49.1":         "2026-11-06T05:20:49.1Z",
 		"2026-11-06 05:20:49-01:00":     "2026-11-06T06:20:49Z",
 	} {
-		got := ParseTime(in)
-		if got == nil || got.UTC().Format(time.RFC3339Nano) != want {
+		got, ok := ParseTime(in)
+		if !ok || got.UTC().Format(time.RFC3339Nano) != want {
 			t.Errorf("ParseTime(%q) = %v, want %s", in, got, want)
 		}
 	}
 	for _, in := range []string{"", "''", "garbage", "2026-11-06"} {
-		if got := ParseTime(in); got != nil {
-			t.Errorf("ParseTime(%q) = %v, want nil", in, got)
+		if got, ok := ParseTime(in); ok || !got.IsZero() {
+			t.Errorf("ParseTime(%q) = %v, %v, want zero, false", in, got, ok)
 		}
 	}
 }
@@ -228,7 +236,7 @@ func TestHumanSize(t *testing.T) {
 
 func TestSort(t *testing.T) {
 	a, b := time.Unix(100, 0), time.Unix(200, 0)
-	ss := []Session{{ID: "z", Updated: &b}, {ID: "y", Updated: &a}, {ID: "x"}, {ID: "w", Updated: &b}}
+	ss := []Session{{ID: "z", Updated: b}, {ID: "y", Updated: a}, {ID: "x"}, {ID: "w", Updated: b}}
 	Sort(ss)
 	var ids []string
 	for _, s := range ss {
@@ -256,7 +264,7 @@ func TestLoadEdgePaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ss, err := Load(home, nil, false)
+	ss, err := Load(t.Context(), home, nil)
 	if err != nil || len(ss) != 1 || ss[0].ID != "abc" {
 		t.Errorf("home with URI characters: %v, %v", ss, err)
 	}
@@ -273,8 +281,11 @@ func TestLoadEdgePaths(t *testing.T) {
 	if err := os.Symlink(real, filepath.Join(home, StateDir, "linked")); err != nil {
 		t.Fatal(err)
 	}
-	ss, err = Load(home, nil, true)
-	if err != nil || len(ss) != 1 || *ss[0].Size != 5000 {
+	ss, err = Load(t.Context(), home, nil)
+	if err == nil {
+		err = FillSizes(t.Context(), ss)
+	}
+	if err != nil || len(ss) != 1 || ss[0].Size != 5000 {
 		t.Errorf("symlinked dir: %+v, %v", ss, err)
 	}
 
@@ -284,8 +295,44 @@ func TestLoadEdgePaths(t *testing.T) {
 		state := filepath.Join(home, StateDir)
 		os.Chmod(state, 0)
 		t.Cleanup(func() { os.Chmod(state, 0o755) })
-		if _, err := Load(home, nil, false); err == nil {
+		if _, err := Load(t.Context(), home, nil); err == nil {
 			t.Error("unreadable session-state: no error")
 		}
+	}
+}
+
+// Delete is the point of no return: a cancelled ctx must not stop it half-way (CS-013).
+func TestDeleteIgnoresCancel(t *testing.T) {
+	fx := testfix.Build(t)
+	ss, err := Load(t.Context(), fx.Home, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var titled []Session
+	for _, s := range ss {
+		if s.ID == testfix.Titled {
+			titled = append(titled, s)
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := Delete(ctx, fx.Home, titled); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(fx.Home, StateDir, testfix.Titled)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("dir kept: %v", err)
+	}
+	ss, _ = Load(t.Context(), fx.Home, nil)
+	for _, s := range ss {
+		if s.ID == testfix.Titled {
+			t.Error("DB row kept")
+		}
+	}
+	b, _ := os.ReadFile(filepath.Join(fx.Home, OpenState))
+	if strings.Contains(string(b), testfix.Titled) {
+		t.Error("UI state kept")
+	}
+	if _, err := Load(ctx, fx.Home, nil); !errors.Is(err, context.Canceled) {
+		t.Errorf("Load with cancelled ctx: %v", err)
 	}
 }

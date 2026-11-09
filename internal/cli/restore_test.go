@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -89,7 +90,7 @@ func TestRestorePick(t *testing.T) {
 		t.Errorf("pick 1: %d %s\n%s", code, errOut, out)
 	}
 	for _, bad := range []string{"9", "0", "x", "+1"} {
-		if _, errOut, code := runIn(fx, nil, bad+"\n", true, "restore"); code != 1 || !strings.HasSuffix(errOut, "Restore which backup? [1] error: invalid choice '"+bad+"'\n") {
+		if _, errOut, code := runIn(fx, nil, bad+"\n", true, "restore"); code != 1 || !strings.HasSuffix(errOut, "Restore which backup? [1] error: invalid choice \""+bad+"\"\n") {
 			t.Errorf("pick %s: %d %q", bad, code, errOut)
 		}
 	}
@@ -210,6 +211,34 @@ func TestRestoreCompat(t *testing.T) {
 	}
 }
 
+// pythonRunner returns a runner for the reference script against fx, with -I and the
+// test zone. It skips the test unless python3 3.12+ (tarfile filter="data") and the
+// script are available.
+func pythonRunner(t *testing.T, fx *testfix.Fixture) func(args ...string) string {
+	t.Helper()
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not on PATH")
+	}
+	if exec.Command(python, "-c", "import sys; sys.exit(sys.version_info < (3, 12))").Run() != nil {
+		t.Skip("python3 older than 3.12")
+	}
+	script, _ := filepath.Abs("../../development/copilot-sessions.sh")
+	if _, err := os.Stat(script); err != nil {
+		t.Skip("reference script missing")
+	}
+	return func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command(python, append([]string{"-I", script}, args...)...)
+		cmd.Env = append(os.Environ(), "TZ=XST-2", "COPILOT_HOME="+fx.Home, "COPILOT_BACKUP_DIR="+fx.BackupDir)
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("python %v: %v", args, err)
+		}
+		return string(out)
+	}
+}
+
 // tree is every path under dir with file bytes and symlink targets, to compare whole homes.
 func tree(t *testing.T, dir string) string {
 	t.Helper()
@@ -241,7 +270,7 @@ func TestRestoreRollback(t *testing.T) {
 		before := tree(t, fx.Home)
 
 		sidebar := filepath.Join(fx.Home, "sidebar-sessions-state")
-		rename = func(from, to string) error {
+		rename := func(from, to string) error {
 			// <home>/tmpNNN/<item> is the extracted item; <home>/tmpNNN/old/<item> the rollback.
 			extracted := strings.HasPrefix(filepath.Base(filepath.Dir(from)), "tmp")
 			if to == sidebar && (extracted || rollbackFails) {
@@ -249,13 +278,12 @@ func TestRestoreRollback(t *testing.T) {
 			}
 			return os.Rename(from, to)
 		}
-		t.Cleanup(func() { rename = os.Rename })
 
-		_, errOut, code := run(fx, nil, "restore", file, "-y")
-		rename = os.Rename
+		env, _, _ := testEnv(fx, nil, strings.NewReader(""), false)
+		err := restore(t.Context(), env, []string{file}, true, rename)
 		if !rollbackFails {
-			if code != 1 || !strings.HasSuffix(errOut, "\nerror: restore failed, nothing changed: boom\n") {
-				t.Fatalf("exit %d: %q", code, errOut)
+			if err == nil || err.Error() != "restore failed, nothing changed: boom" {
+				t.Fatalf("err %v", err)
 			}
 			if got := tree(t, fx.Home); got != before {
 				t.Errorf("home changed:\n%s\nwant:\n%s", got, before)
@@ -263,8 +291,8 @@ func TestRestoreRollback(t *testing.T) {
 			continue
 		}
 		old, _ := filepath.Glob(filepath.Join(fx.Home, "tmp*", "old"))
-		if code != 1 || len(old) != 1 || !strings.HasSuffix(errOut, "\nerror: restore failed and rollback incomplete; old data kept in "+old[0]+": boom\n") {
-			t.Fatalf("exit %d: %q, old %v", code, errOut, old)
+		if len(old) != 1 || err == nil || err.Error() != "restore failed and rollback incomplete; old data kept in "+old[0]+": boom" {
+			t.Fatalf("err %v, old %v", err, old)
 		}
 		if !exists(filepath.Join(old[0], "sidebar-sessions-state")) {
 			t.Error("old sidebar state not kept")

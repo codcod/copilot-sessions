@@ -3,27 +3,24 @@ package filter
 
 import (
 	"fmt"
-	"os"
+	"maps"
 	"path/filepath"
-	"sort"
-	"strconv"
+	"slices"
 	"strings"
 	"time"
-
-	"github.com/spf13/pflag"
 
 	"github.com/codcod/copilot-sessions/internal/session"
 )
 
-// Statuses lists the session statuses in display order.
-var Statuses = []string{"ongoing", "stale", "closed"}
-
-// Date is a calendar date in the local timezone.
+// Date is a calendar date in the local timezone; the zero Date means "not set".
 type Date struct {
-	Y int
-	M time.Month
-	D int
+	Y int        // year
+	M time.Month // month, 1–12
+	D int        // day of the month, 1–31
 }
+
+// IsZero reports whether d is the zero Date.
+func (d Date) IsZero() bool { return d == Date{} }
 
 // DateOf returns the date of t in t's location.
 func DateOf(t time.Time) Date {
@@ -59,8 +56,8 @@ func ParseDate(value string, now time.Time) (Date, error) {
 	case "yesterday":
 		return today.addDays(-1), nil
 	}
-	if len(v) > 1 && strings.IndexByte("dwm", v[len(v)-1]) >= 0 && allDigits(v[:len(v)-1]) {
-		if n, err := strconv.Atoi(v[:len(v)-1]); err == nil {
+	if len(v) > 1 && strings.IndexByte("dwm", v[len(v)-1]) >= 0 {
+		if n, ok := session.ParseUint(v[:len(v)-1]); ok {
 			switch v[len(v)-1] {
 			case 'd':
 				return today.addDays(-n), nil
@@ -74,104 +71,55 @@ func ParseDate(value string, now time.Time) (Date, error) {
 	if t, err := time.Parse("2006-01-02", v); err == nil {
 		return DateOf(t), nil
 	}
-	return Date{}, fmt.Errorf("invalid date '%s'; use YYYY-MM-DD, today, yesterday, Nd, Nw or Nm", value)
-}
-
-func allDigits(s string) bool {
-	for _, c := range []byte(s) {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return s != ""
+	return Date{}, fmt.Errorf("invalid date %q; use YYYY-MM-DD, today, yesterday, Nd, Nw or Nm", value)
 }
 
 // ParseStatuses parses a comma-separated subset of ongoing, stale, closed.
-func ParseStatuses(value string) (map[string]bool, error) {
-	set := map[string]bool{}
+func ParseStatuses(value string) (map[session.Status]bool, error) {
+	set := map[session.Status]bool{}
 	ok := true
 	for item := range strings.SplitSeq(value, ",") {
-		item = strings.ToLower(strings.TrimSpace(item))
-		if item == "" {
+		st := session.Status(strings.ToLower(strings.TrimSpace(item)))
+		if st == "" {
 			continue
 		}
-		set[item] = true
-		ok = ok && (item == "ongoing" || item == "stale" || item == "closed")
+		set[st] = true
+		ok = ok && slices.Contains(session.Statuses(), st)
 	}
 	if !ok || len(set) == 0 {
-		return nil, fmt.Errorf("invalid status '%s'; use a comma-separated list of %s", value, strings.Join(Statuses, ", "))
+		names := make([]string, 0, 3)
+		for _, st := range session.Statuses() {
+			names = append(names, string(st))
+		}
+		return nil, fmt.Errorf("invalid status %q; use a comma-separated list of %s", value, strings.Join(names, ", "))
 	}
 	return set, nil
 }
 
-type dateFlag struct {
-	p   **Date
-	now func() time.Time
-}
-
-// DateFlag is a pflag.Value that parses into *p, using now for "today".
-func DateFlag(p **Date, now func() time.Time) pflag.Value { return dateFlag{p, now} }
-
-func (f dateFlag) Set(s string) error {
-	d, err := ParseDate(s, f.now())
-	if err == nil {
-		*f.p = &d
+// StatusList returns the statuses in set, sorted, joined with sep.
+func StatusList(set map[session.Status]bool, sep string) string {
+	var b strings.Builder
+	for i, st := range slices.Sorted(maps.Keys(set)) {
+		if i > 0 {
+			b.WriteString(sep)
+		}
+		b.WriteString(string(st))
 	}
-	return err
-}
-
-func (f dateFlag) String() string {
-	if f.p == nil || *f.p == nil {
-		return ""
-	}
-	return (*f.p).String()
-}
-
-func (dateFlag) Type() string { return "DATE" }
-
-type statusFlag struct{ p *map[string]bool }
-
-// StatusFlag is a pflag.Value that parses a status list into *p.
-func StatusFlag(p *map[string]bool) pflag.Value { return statusFlag{p} }
-
-func (f statusFlag) Set(s string) error {
-	set, err := ParseStatuses(s)
-	if err == nil {
-		*f.p = set
-	}
-	return err
-}
-
-func (f statusFlag) String() string {
-	if f.p == nil {
-		return ""
-	}
-	return strings.Join(sortedKeys(*f.p), ",")
-}
-
-func (statusFlag) Type() string { return "LIST" }
-
-func sortedKeys(m map[string]bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+	return b.String()
 }
 
 // Filters holds the list/clean filters; they combine with AND.
 type Filters struct {
 	IDs          []string
-	Until, Since *Date
-	Status       map[string]bool
+	Until, Since Date // zero when unset
+	Status       map[session.Status]bool
 	Cwd, Grep    string
 	Empty        bool
 }
 
 // Any reports whether any filter or ID is set.
 func (f Filters) Any() bool {
-	return len(f.IDs) > 0 || f.Until != nil || f.Since != nil || len(f.Status) > 0 || f.Cwd != "" || f.Grep != "" || f.Empty
+	return len(f.IDs) > 0 || !f.Until.IsZero() || !f.Since.IsZero() || len(f.Status) > 0 || f.Cwd != "" || f.Grep != "" || f.Empty
 }
 
 // Describe returns the active filters joined with "; ", or "all sessions" (spec §6.2).
@@ -180,20 +128,20 @@ func (f Filters) Describe() string {
 	if len(f.IDs) > 0 {
 		parts = append(parts, "IDs "+strings.Join(f.IDs, ", "))
 	}
-	if f.Since != nil {
+	if !f.Since.IsZero() {
 		parts = append(parts, "updated on or after "+f.Since.String())
 	}
-	if f.Until != nil {
+	if !f.Until.IsZero() {
 		parts = append(parts, "updated on or before "+f.Until.String())
 	}
 	if len(f.Status) > 0 {
-		parts = append(parts, "status "+strings.Join(sortedKeys(f.Status), "/"))
+		parts = append(parts, "status "+StatusList(f.Status, "/"))
 	}
 	if f.Cwd != "" {
 		parts = append(parts, "cwd under "+f.Cwd)
 	}
 	if f.Grep != "" {
-		parts = append(parts, "name contains '"+f.Grep+"'")
+		parts = append(parts, fmt.Sprintf("name contains %q", f.Grep))
 	}
 	if f.Empty {
 		parts = append(parts, "empty")
@@ -205,7 +153,7 @@ func (f Filters) Describe() string {
 }
 
 // Apply returns the sessions of all that match f, in input order. ID prefixes resolve
-// against all sessions. hasTurns is called only for --empty.
+// against all sessions. Cwd must already be ~-expanded. hasTurns is called only for --empty.
 func Apply(all []session.Session, f Filters, hasTurns func() (map[string]bool, error)) ([]session.Session, error) {
 	var wanted map[string]bool
 	if len(f.IDs) > 0 {
@@ -217,7 +165,7 @@ func Apply(all []session.Session, f Filters, hasTurns func() (map[string]bool, e
 	var root string
 	if f.Cwd != "" {
 		var err error
-		if root, err = filepath.Abs(ExpandUser(f.Cwd)); err != nil {
+		if root, err = filepath.Abs(f.Cwd); err != nil {
 			return nil, err
 		}
 	}
@@ -232,13 +180,14 @@ func Apply(all []session.Session, f Filters, hasTurns func() (map[string]bool, e
 	out := []session.Session{}
 	for _, s := range all {
 		var day int
-		if s.Updated != nil {
+		unknown := s.Updated.IsZero()
+		if !unknown {
 			day = DateOf(s.Updated.Local()).key()
 		}
 		switch {
 		case wanted != nil && !wanted[s.ID],
-			f.Until != nil && (s.Updated == nil || day > f.Until.key()),
-			f.Since != nil && (s.Updated == nil || day < f.Since.key()),
+			!f.Until.IsZero() && (unknown || day > f.Until.key()),
+			!f.Since.IsZero() && (unknown || day < f.Since.key()),
 			len(f.Status) > 0 && !f.Status[s.Status],
 			f.Cwd != "" && (s.Cwd == "" || !under(s.Cwd, root)),
 			f.Grep != "" && !strings.Contains(strings.ToLower(s.Name), needle),
@@ -261,24 +210,14 @@ func resolveIDs(all []session.Session, prefixes []string) (map[string]bool, erro
 		}
 		switch {
 		case len(matches) == 0:
-			return nil, fmt.Errorf("no session matches ID '%s'", p)
+			return nil, fmt.Errorf("no session matches ID %q", p)
 		case len(matches) > 1:
-			sort.Strings(matches)
-			return nil, fmt.Errorf("ID '%s' is ambiguous: %s", p, strings.Join(matches[:min(5, len(matches))], ", "))
+			slices.Sort(matches)
+			return nil, fmt.Errorf("ID %q is ambiguous: %s", p, strings.Join(matches[:min(5, len(matches))], ", "))
 		}
 		ids[matches[0]] = true
 	}
 	return ids, nil
-}
-
-// ExpandUser expands a leading ~ to the home directory.
-func ExpandUser(p string) string {
-	if p == "~" || strings.HasPrefix(p, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return home + p[1:]
-		}
-	}
-	return p
 }
 
 // under reports whether path is root or below it; /a/b is not below /a/bc.
