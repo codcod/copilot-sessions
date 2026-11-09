@@ -8,7 +8,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// pidIsCopilot reports whether any argv string of pid contains "copilot". Any sysctl error
+// pidIsCopilot reports whether any argv string of pid contains "copilot", case-insensitively
+// (APFS is case-insensitive by default, and argv keeps the typed case). Any sysctl error
 // (EPERM on another user's process, a gone PID) reads as false.
 func pidIsCopilot(pid int) bool {
 	b, err := unix.SysctlRaw("kern.procargs2", pid)
@@ -16,10 +17,11 @@ func pidIsCopilot(pid int) bool {
 }
 
 // argvHasCopilot reports whether an argv string of a kern.procargs2 buffer contains
-// "copilot". The environment after argv is not matched: COPILOT_HOME would flag anything.
+// "copilot", case-insensitively. The environment after argv is not matched: COPILOT_HOME
+// would flag anything.
 func argvHasCopilot(b []byte) bool {
 	return slices.ContainsFunc(procargsArgv(b), func(a []byte) bool {
-		return bytes.Contains(a, []byte("copilot"))
+		return bytes.Contains(bytes.ToLower(a), []byte("copilot"))
 	})
 }
 
