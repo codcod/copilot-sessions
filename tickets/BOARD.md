@@ -20,11 +20,10 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | [] |
 
 ## REWORK
 
@@ -68,6 +67,7 @@ Last updated: 2026-11-09
 | CS-013 | Go 1.27 upgrade and idiomatic Go across the codebase | yes — merged to main (PR #11, b7b8117, https://github.com/codcod/copilot-sessions/commit/b7b8117) |
 | CS-014 | macOS: match copilot case-insensitively in process detection | yes — merged to main (PR #15, 16da929, https://github.com/codcod/copilot-sessions/commit/16da929) |
 | CS-015 | Fix the two Windows CI test failures after CS-010 | yes — merged to main (PR #14, d6c78a5, https://github.com/codcod/copilot-sessions/commit/d6c78a5) |
+| CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | no — publish-gated |
 
 ## DROPPED
 

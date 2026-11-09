@@ -60,7 +60,28 @@ Commit `test(session): match copilot case-insensitively in the Windows live chec
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+2026-11-09 — delegated review (independent reviewer sub-agent, hunt: one pass), branch `feat/CS-016-windows-test-case` @ 3fc97c8.
+
+- [x] Reviewer independence (step 0): delegated to a fresh sub-agent; no delegated findings discarded
+- [x] In-tree stale-branch check (step 0a): branch rebased onto main; `pickle doctor` 0 errors, 0 warnings
+- [x] Implementation audit (steps 1, 2): Task 1 and decisions 1–2 verified. `just lint`, `just test`, `just test-linux`, `GOOS=windows go vet ./...` and the Windows test build are green. CI `test-windows` is still pending until the push
+- [x] Correctness hunt (step 3): one pass over all 8 angles by the delegated reviewer, no host tool and no further sub-agents; nothing found
+- [x] Consistency audit (step 4): the Windows and darwin live checks are now identical; Linux stays case-sensitive by CS-014 decision 2
+- [x] Documentation audit (step 4a): test-only, nothing user-facing
+- [x] Docs-readability pass (step 4b): conscious skip, no docs in the diff
+- [x] Findings recorded (step 5)
+- [x] Ticket moved to `6-done/` (step 6)
+- [x] References and governing docs (step 7): none affected
+- [x] Impact sweep (step 8): no TO DO/READY tickets remain
+- [ ] Commit message & MR presented for approval (step 9)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+
+No findings.
+
+dispositions: none (0 findings).
+cost: estimated S, actual S
 
 ## History
 
@@ -68,3 +89,4 @@ Commit `test(session): match copilot case-insensitively in the Windows live chec
 - 2026-11-09 — TO DO → READY: plan complete
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no findings
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet + test build); CI test-windows pending push
+- 2026-11-09 — IN REVIEW → DONE: review: no findings
