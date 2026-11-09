@@ -275,16 +275,16 @@ Review 2026-11-09, round 0. The orchestrator (the implementing session) delegate
 | F3 | blocking | correctness | — | `--cwd` matching is case-sensitive on Windows, so a `c:\` vs `C:\` drive letter or a folder case difference silently selects nothing. | unreproduced (needs Windows): `under` compares bytes (`filter.go:230`). | Compare case-insensitively when GOOS is windows. |
 | F4 | non-blocking | correctness | noted | `expandUser` doesn't expand `~\proj` on Windows. `~/proj` works. | `internal/cli/cli.go:62` | Accept `~` plus `os.IsPathSeparator` if a user asks. |
 | F5 | non-blocking | other | noted | Restoring a backup with symlinks needs symlink privilege or Developer Mode on Windows; without it, the restore aborts (home unchanged). This is pre-existing `Extract` behaviour. | `internal/backup/restore.go:85` | Session dirs rarely hold symlinks; revisit on a report. |
-| F6 | non-blocking | docs-gap | fixed inline | README claimed restore "fails with COPILOT_HOME left unchanged", ignoring the rollback-incomplete path. | `README.md` (`--include-ongoing` caveat) | Reworded to mention the kept-old-data message (commit 49052cc). |
+| F6 | non-blocking | docs-gap | fixed inline | README claimed restore "fails with COPILOT_HOME left unchanged", ignoring the rollback-incomplete path. | `README.md` (`--include-ongoing` caveat) | Reworded to mention the kept-old-data message (commit 223e4c8). |
 | F8 | non-blocking | design | noted | `startCopilotHelper` branches on `runtime.GOOS == "windows"` twice, and the live-process test gates repeat an OS list. | `internal/testfix/testfix.go:100` | Collapse when another OS is added. |
 | F9 | non-blocking | other | noted | The Windows helper copies `PING.EXE` without its `.mui`. It might exit early on some installs and make live-process tests flaky. | unreproduced (needs Windows) | If `test-windows` flakes, re-exec a self-built helper instead. |
-| D1 | non-blocking | test-gap | fixed inline | The open-file restore test restored a backup identical to home, so the tree comparison could not detect a missed rollback. | `internal/cli/restore_windows_test.go` | Change `session-state` after the backup (commit 49052cc). |
+| D1 | non-blocking | test-gap | fixed inline | The open-file restore test restored a backup identical to home, so the tree comparison could not detect a missed rollback. | `internal/cli/restore_windows_test.go` | Change `session-state` after the backup (commit 223e4c8). |
 | D2 | non-blocking | docs-gap | noted | README doesn't give the Windows default for `COPILOT_BACKUP_DIR`. | `README.md` (~36) | `~` reads as shorthand; add on request. |
 
 Dispositions: 2 fixed inline (F6, D1), 5 noted (F4, F5, F8, F9, D2), 0 folded, 0 new tickets. Blocking: F1, F2, F3 → rework. (F7 discarded, D3 process.)
 cost: estimated M, actual M
 
-### Rework fix record — round 1 (commit cea66f1)
+### Rework fix record — round 1 (commit 9bd440d)
 
 - F1: `under` now returns false for a cwd that is neither absolute nor rooted, and calls `Abs` only to give a rooted Windows path its drive letter. Regression test `TestUnderRelative` (`"proj"`, `""`, and `C:\Users\me\proj` off Windows).
 - F2: `pidIsCopilot` on Windows lower-cases the command line before matching `copilot`.
