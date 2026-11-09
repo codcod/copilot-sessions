@@ -11,7 +11,8 @@ idiomatic Go and the script's behaviour or output disagree, idiomatic Go wins;
 section 11 lists every such difference. When this spec is unclear, it is the
 spec that gets clarified, not the script that decides.
 
-The program runs on Linux (WSL). It reads `/proc` for process detection.
+The program runs on Linux (WSL) and macOS. Process detection reads `/proc` on Linux and
+uses `sysctl` (`kern.procargs2`, `kern.proc.pid`) on macOS.
 
 ## 2. Technical requirements
 
@@ -90,7 +91,7 @@ For directory sessions, the DB only fills empty fields.
 
 | Status | Rule |
 |--------|------|
-| `ongoing` | at least one `inuse.<pid>.lock` exists and `/proc/<pid>/cmdline` contains the bytes `copilot` |
+| `ongoing` | at least one `inuse.<pid>.lock` exists and `/proc/<pid>/cmdline` (on macOS, the argv from `kern.procargs2`, not its environment) contains the bytes `copilot` |
 | `stale` | at least one `inuse.*.lock` exists, but none passes the `ongoing` check |
 | `closed` | no `inuse.*.lock` file exists, or the session is DB-only |
 
@@ -99,7 +100,8 @@ for `ongoing` sessions.
 
 **Current session.** Build the set of ancestor PIDs of the running process:
 start at `os.Getpid()` and follow the parent PID up to PID 1. The parent PID
-is field 2 after the **last** `)` in `/proc/<pid>/stat`. A session is
+is field 2 after the **last** `)` in `/proc/<pid>/stat` (on macOS, `Eproc.Ppid` from the
+`kern.proc.pid` sysctl; the walk also stops where a PID is its own parent). A session is
 `current` if one of its lock PIDs is in that set. This is the Copilot session
 that runs the command.
 

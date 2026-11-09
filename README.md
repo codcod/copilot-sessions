@@ -11,8 +11,8 @@ status:
 - `stale`: the session has an in-use lock left by a process that has exited.
 - `closed`: the session is not in use.
 
-It runs on Linux and has been tested on WSL2. Status detection reads `/proc`, so
-macOS and Windows are not supported yet.
+It runs on Linux (tested on WSL2) and macOS. Status detection reads `/proc` on Linux
+and uses `sysctl` on macOS. Windows is not supported yet.
 
 ## Usage
 
@@ -124,16 +124,19 @@ sudo apt install copilot-sessions
 
 ### From a release
 
-Download `copilot-sessions_<version>_linux_<arch>.tar.gz` (`<arch>` is `amd64`
-or `arm64`) and `checksums.txt` from
+Download `copilot-sessions_<version>_<os>_<arch>.tar.gz` (`<os>` is `linux` or
+`darwin`, `<arch>` is `amd64` or `arm64`) and `checksums.txt` from
 [GitHub Releases](https://github.com/codcod/copilot-sessions/releases). Then
 verify the archive and unpack it into `~/.local/bin`:
 
 ```bash
-sha256sum --ignore-missing -c checksums.txt
+sha256sum --ignore-missing -c checksums.txt   # macOS: shasum -a 256 --ignore-missing -c
 mkdir -p ~/.local/bin
-tar xzf copilot-sessions_<version>_linux_<arch>.tar.gz -C ~/.local/bin copilot-sessions
+tar xzf copilot-sessions_<version>_<os>_<arch>.tar.gz -C ~/.local/bin copilot-sessions
 ```
+
+The macOS binaries are not signed. If you downloaded the archive with a browser, remove the
+quarantine flag first: `xattr -d com.apple.quarantine ~/.local/bin/copilot-sessions`.
 
 ### With Go
 

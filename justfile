@@ -16,7 +16,7 @@ build:
 test:
     go test ./...
 
-# Run tests on Linux in Docker, so the /proc-dependent tests run from macOS
+# Run tests on Linux in Docker, so the Linux (/proc) path is tested from macOS
 [group('qa')]
 test-linux:
     docker run --rm -v "$PWD":/src -w /src \
