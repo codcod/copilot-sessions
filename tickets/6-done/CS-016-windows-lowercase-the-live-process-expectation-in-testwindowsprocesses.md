@@ -73,7 +73,7 @@ Commit `test(session): match copilot case-insensitively in the Windows live chec
 - [x] Ticket moved to `6-done/` (step 6)
 - [x] References and governing docs (step 7): none affected
 - [x] Impact sweep (step 8): no TO DO/READY tickets remain
-- [ ] Commit message & MR presented for approval (step 9)
+- [x] Commit message & MR approved (step 9); main pushed first, `origin/main...HEAD` carried no `tickets/` path; PR #16 opened
 
 | id | severity | class | disposition | description | evidence | suggestion |
 |---|---|---|---|---|---|---|
@@ -90,3 +90,4 @@ cost: estimated S, actual S
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no findings
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet + test build); CI test-windows pending push
 - 2026-11-09 — IN REVIEW → DONE: review: no findings
+- 2026-11-09 — published: pushed feat/CS-016-windows-test-case, opened PR #16 (awaiting human merge)
