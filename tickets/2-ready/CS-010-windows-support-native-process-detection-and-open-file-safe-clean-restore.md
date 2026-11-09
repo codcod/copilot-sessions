@@ -253,3 +253,4 @@ tab completion.
 - 2026-11-08 — TO DO → READY: plan complete
 - 2026-11-09 — re-refined after CS-013 (stays READY): line refs and restore test seam updated to the post-CS-013 tree; added decision 10 + task 2b (Unix-permission tests skip on Windows); approach otherwise unchanged
 - 2026-11-09 — note (CS-009 applicability gate F7): Copilot CLI 1.0.x runs as a native per-platform binary (`@github/copilot-win32-<arch>/copilot.exe`), not `node.exe`. Re-check decision 3's rationale at pickup; `ExeFile` may suffice, but argv fails safe (see CS-009 F1).
+- 2026-11-09 — impact sweep (CS-009 review): `testfix.startCopilotHelper` now symlinks `sleep` (macOS killed a copy on code-signature mismatch). Task 2's Windows branch should keep copying `PING.EXE`, because Windows symlinks need privilege. `session_other.go` is now `//go:build !linux && !darwin`, so decision 1 narrows it to `&& !windows`. `argvHasCopilot`/`procargsArgv` are darwin-only and not reused.
