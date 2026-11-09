@@ -288,6 +288,24 @@ Checklist:
 - F7 (fixed inline): `scope` is built inside the `summary` closure, only when a summary prints.
 - Acceptance re-run: `just lint`, `just test`, `just test-linux` green; `TestParity` PASS.
 
+### Review 2 (scoped re-review) — 2026-11-09 (branch @ c17feb7)
+
+F1, F4, F7 closed: verified against `git show c17feb7`.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| F10 | non-blocking | stale-xref | noted | The REWORK → IN REVIEW History line names `1667b53`, the commit from before the rebase; the tip is `c17feb7` (same pattern as F2) | `git range-diff`: 1667b53 = c17feb7 | Next move records `c17feb7` |
+| F11 | non-blocking | docs-gap | noted | Spec §11 says `clean -q` prints the deleted IDs "instead of the summary"; true for stdout, but it doesn't mention the stderr summary before a prompt (covered in §6 *Streams* and §6.2) | `development/spec.md` §11 | Optional wording tweak |
+
+Dispositions: 0 fixed inline, 2 noted (F10, F11), 0 folded, 0 new tickets; 0 blocking.
+cost: estimated M, actual M
+
+Checklist:
+- [x] Reviewer independence: scoped re-review delegated to a fresh reviewer (hunt `one pass` over the fix diff); `pickle doctor` 0 warnings.
+- [x] Correctness hunt: one pass, all eight angles on `c17feb7`: no findings.
+- [x] Acceptance re-run: `just lint`, `just test`, `just test-linux` green; `TestParity` PASS; CLI probes as expected.
+- [x] Consistency and docs: spec §6/§6.2 and the decision 5 amendment match the code; README and CHANGELOG accurate.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: review of CLI options against Go/Cobra conventions found 8 discrepancies; user asked to fix all and update the spec
@@ -298,3 +316,4 @@ Checklist:
 - 2026-11-09 — IN REVIEW → REWORK: review 1: 1 blocking (F1, clean -q prompt without context; decision 5 amended with user sign-off)
 - 2026-11-09 — plan amended inline: decision 5 — `clean -q` prints its summary line to stderr before an interactive prompt (review 1 F1, user sign-off)
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed (F1, F4, F7); branch feat/CS-012-idiomatic-cli @ 1667b53
+- 2026-11-09 — IN REVIEW → DONE: review 2 clean (0 blocking); branch feat/CS-012-idiomatic-cli @ c17feb7; publish pending user approval
