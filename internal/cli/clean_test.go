@@ -92,7 +92,7 @@ func TestCleanValidation(t *testing.T) {
 func TestCleanOngoing(t *testing.T) {
 	fx := testfix.Build(t)
 	if !fx.OngoingLive {
-		t.Skip("needs /proc for a live ongoing session")
+		t.Skip("needs a live ongoing session")
 	}
 	note := "Skipped 1 ongoing session (use --include-ongoing).\n"
 	tests := []struct {

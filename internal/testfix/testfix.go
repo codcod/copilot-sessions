@@ -35,7 +35,7 @@ const (
 type Fixture struct {
 	Home, BackupDir string
 	OngoingPID      int
-	OngoingLive     bool // the ongoing lock PID is a live copilot-test process (Linux only)
+	OngoingLive     bool // the ongoing lock PID is a live copilot-test process (Linux and macOS)
 }
 
 // Build creates the fixture under t.TempDir() and points COPILOT_HOME and
@@ -47,7 +47,7 @@ func Build(t testing.TB) *Fixture {
 	t.Setenv("COPILOT_HOME", fx.Home)
 	t.Setenv("COPILOT_BACKUP_DIR", fx.BackupDir)
 
-	if runtime.GOOS == "linux" {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		fx.OngoingPID = startCopilotHelper(t, root)
 		fx.OngoingLive = true
 	}
@@ -90,15 +90,13 @@ func Build(t testing.TB) *Fixture {
 	return fx
 }
 
-// startCopilotHelper runs a copy of sleep from a directory named copilot-test, so its
-// cmdline contains "copilot", and returns its PID. The copy keeps the name sleep because a
-// multicall coreutils (uutils, Ubuntu 26.04+) picks the applet from argv[0]'s basename.
+// startCopilotHelper runs sleep through a symlink in a directory named copilot-test, so its
+// argv contains "copilot", and returns its PID. A symlink, not a copy: macOS kills a copied
+// platform binary (its code signature no longer matches). The link keeps the name sleep
+// because a multicall coreutils (uutils, Ubuntu 26.04+) picks the applet from argv[0]'s
+// basename.
 func startCopilotHelper(t testing.TB, dir string) int {
 	src, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +104,7 @@ func startCopilotHelper(t testing.TB, dir string) int {
 	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(bin, data, 0o755); err != nil {
+	if err := os.Symlink(src, bin); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(bin, "300")
