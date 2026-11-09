@@ -113,7 +113,9 @@ Aborted.`). Everything else stays on stdout: session/backup tables shown as resu
    with `-n` that would be deleted; no table, no summary line, no `No sessions match.`, no
    `Deleted …`; sizes are still not computed. `backup -q`: the created path only; with `--keep`,
    rotation prints nothing on stdout (`Nothing to remove`/`Deleted N old backups` suppressed).
-   stderr notes and prompts still appear under `-q`. `list --json` with `-q` is a usage error:
+   stderr notes and prompts still appear under `-q`. Amended 2026-11-09 (review 1 F1, user sign-off): `clean -q`,
+   when its prompt will be shown (no `-y`, no `-n`, TTY), prints the summary line without
+   its size part to stderr before the prompt. `list --json` with `-q` is a usage error:
    `--json cannot be combined with --quiet`.
 6. **`--since` loses its `-S` shorthand.** `-s` stays `--status`; `-u` stays `--until`. `-S` then
    fails as an unknown shorthand (exit 2).
@@ -279,6 +281,13 @@ Checklist:
 - [x] Acceptance re-run by the delegated reviewer: `just lint`, `go test ./...`, `just test-linux`, `TestParity` PASS, CLI probes as expected.
 - [x] Consistency (step 4) and docs (step 4a): spec §5.2/§6/§7/§9/§11/§13, README, CHANGELOG match the code.
 
+### Rework fix record — round 1 (commit 1667b53)
+
+- F1 (blocking): `clean.go` prints `N of M sessions selected (<scope>).` to stderr under `-q` when the prompt will show; new `clean_test.go` case `clean -q aaaa1` on a TTY asserts stdout empty, stderr summary + prompt. Spec §6 *Streams* and §6.2 updated.
+- F4 (fixed inline): `willPrompt(env, yes)` in `confirm.go`, used by `confirm`, `applyRetention` and `runClean`.
+- F7 (fixed inline): `scope` is built inside the `summary` closure, only when a summary prints.
+- Acceptance re-run: `just lint`, `just test`, `just test-linux` green; `TestParity` PASS.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: review of CLI options against Go/Cobra conventions found 8 discrepancies; user asked to fix all and update the spec
@@ -287,3 +296,5 @@ Checklist:
 - 2026-11-09 — plan amended inline: applicability gate — `--json -q` removal consequences (spec/test/CHANGELOG), list of flipping tests, rotation listing on stderr only when prompting; 2 findings noted and closed
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, TestParity PASS, CLI probes); branch feat/CS-012-idiomatic-cli @ f77d2f9
 - 2026-11-09 — IN REVIEW → REWORK: review 1: 1 blocking (F1, clean -q prompt without context; decision 5 amended with user sign-off)
+- 2026-11-09 — plan amended inline: decision 5 — `clean -q` prints its summary line to stderr before an interactive prompt (review 1 F1, user sign-off)
+- 2026-11-09 — REWORK → IN REVIEW: findings fixed (F1, F4, F7); branch feat/CS-012-idiomatic-cli @ 1667b53
