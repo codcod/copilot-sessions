@@ -19,7 +19,7 @@ func TestWindowsProcesses(t *testing.T) {
 		t.Error("copilot-test helper: want true")
 	}
 	// This test binary is Copilot only if some argv string says so (a -test.run pattern can).
-	want := slices.ContainsFunc(os.Args, func(a string) bool { return strings.Contains(a, "copilot") })
+	want := slices.ContainsFunc(os.Args, func(a string) bool { return strings.Contains(strings.ToLower(a), "copilot") })
 	if pidIsCopilot(os.Getpid()) != want {
 		t.Errorf("pidIsCopilot(self) = %v for %q", !want, os.Args)
 	}
