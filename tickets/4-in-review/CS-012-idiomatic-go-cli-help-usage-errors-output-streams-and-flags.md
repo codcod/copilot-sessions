@@ -264,3 +264,4 @@ From the repo root on the feature branch:
 - 2026-11-09 — TO DO → READY: plan complete
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: 5 non-blocking findings (3 inline amendments, 2 note-and-close)
 - 2026-11-09 — plan amended inline: applicability gate — `--json -q` removal consequences (spec/test/CHANGELOG), list of flipping tests, rotation listing on stderr only when prompting; 2 findings noted and closed
+- 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, TestParity PASS, CLI probes); branch feat/CS-012-idiomatic-cli @ f77d2f9

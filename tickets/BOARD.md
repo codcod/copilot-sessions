@@ -13,18 +13,18 @@ Last updated: 2026-11-09
 
 ## IN DEVELOPMENT
 
+### copilot-sessions (0/1)
+
+| id | title | depends-on |
+|---|---|---|
+
+## IN REVIEW
+
 ### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
 | CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | [] |
-
-## IN REVIEW
-
-### copilot-sessions (0/1)
-
-| id | title | depends-on |
-|---|---|---|
 
 ## REWORK
 
