@@ -320,3 +320,4 @@ Dispositions (round 1): 2 fixed inline (N3, N4), 1 noted (N2), 1 new ticket (N1 
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green on macOS; test-windows CI pending push
 - 2026-11-09 — IN REVIEW → REWORK: blocking findings F1, F2, F3
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed
+- 2026-11-09 — note: published with user approval: main's board commits pushed, branch pushed (5 commits, bf1a62e..5e92dd2), PR #13 https://github.com/codcod/copilot-sessions/pull/13. Stays IN REVIEW until CI `test-windows` is green, then DONE.
