@@ -281,7 +281,7 @@ Checklist:
 - [x] Acceptance re-run by the delegated reviewer: `just lint`, `go test ./...`, `just test-linux`, `TestParity` PASS, CLI probes as expected.
 - [x] Consistency (step 4) and docs (step 4a): spec §5.2/§6/§7/§9/§11/§13, README, CHANGELOG match the code.
 
-### Rework fix record — round 1 (commit 1667b53)
+### Rework fix record — round 1 (commit 871c5e5)
 
 - F1 (blocking): `clean.go` prints `N of M sessions selected (<scope>).` to stderr under `-q` when the prompt will show; new `clean_test.go` case `clean -q aaaa1` on a TTY asserts stdout empty, stderr summary + prompt. Spec §6 *Streams* and §6.2 updated.
 - F4 (fixed inline): `willPrompt(env, yes)` in `confirm.go`, used by `confirm`, `applyRetention` and `runClean`.
