@@ -284,6 +284,13 @@ Review 2026-11-09, round 0. The orchestrator (the implementing session) delegate
 Dispositions: 2 fixed inline (F6, D1), 5 noted (F4, F5, F8, F9, D2), 0 folded, 0 new tickets. Blocking: F1, F2, F3 → rework. (F7 discarded, D3 process.)
 cost: estimated M, actual M
 
+### Rework fix record — round 1 (commit cea66f1)
+
+- F1: `under` now returns false for a cwd that is neither absolute nor rooted, and calls `Abs` only to give a rooted Windows path its drive letter. Regression test `TestUnderRelative` (`"proj"`, `""`, and `C:\Users\me\proj` off Windows).
+- F2: `pidIsCopilot` on Windows lower-cases the command line before matching `copilot`.
+- F3: on Windows, `under` compares path, root and prefix lower-cased. Regression test `filter_windows_test.go` `TestUnderWindowsCase` (passes under Wine).
+- Re-run: `just lint`, `just test`, `just test-linux`, windows amd64 vet and arm64 build all green.
+
 ## History
 
 - 2026-11-08 — created (TO DO). source: review: CS-008 platform exploration; Windows split from CS-009 at user request
@@ -297,3 +304,4 @@ cost: estimated M, actual M
 - 2026-11-09 — note: implemented on `feat/CS-010-windows-support` (5 commits). Mac acceptance green (`just lint`, `just test`, `just test-linux`, windows vet/build, `dist-check`, `dist-snapshot` → 4 tar.gz + windows_{amd64,arm64}.zip). The CI `test-windows` job can't run until the branch is pushed (publish-gated). Smoke run of the windows/arm64 test binaries under Wine 10 (Debian trixie, Docker): everything passes except Wine gaps — no symlinks ("Request not supported"), no `ProcessCommandLineInformation` (STATUS_INVALID_INFO_CLASS), ppid 0 for a Linux-launched process, and renames of dirs holding open files allowed — so the process-detection, symlink and open-file restore tests are proven only by `test-windows`. The Wine run found one real Windows test bug: `TestLoadEdgePaths` used `?` in a dir name (illegal on Windows); fixed by dropping `?` on Windows.
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green on macOS; test-windows CI pending push
 - 2026-11-09 — IN REVIEW → REWORK: blocking findings F1, F2, F3
+- 2026-11-09 — REWORK → IN REVIEW: findings fixed
