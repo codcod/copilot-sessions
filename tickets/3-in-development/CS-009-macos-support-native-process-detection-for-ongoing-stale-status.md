@@ -229,3 +229,4 @@ leftover lock it shows `stale`. CI's `test-macos` job is green on the PR.
 - 2026-11-08 — TO DO → READY: plan complete
 - 2026-11-09 — re-refined after CS-013 (stays READY): line refs, test-skip and goreleaser/CI details updated to the post-CS-013 tree; approach and decisions unchanged
 - 2026-11-09 — plan amended inline: applicability gate (independent sub-agent) found no blocking issues. F1 updated the procargs2 rationale for the native binary; F3/F4 added spec:93 and README 14–15/127–135; F5 recorded prerequisite 2 as met by proxy (Docker, Copilot CLI 1.0.107) and moved the real-macOS check to manual acceptance; F6 tightened the acceptance notes. F2 and F8 closed. F7 noted on CS-010.
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up
