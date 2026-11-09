@@ -33,6 +33,20 @@ jobs:
       - name: build
         run: CGO_ENABLED=0 go build -o copilot-sessions ./cmd/copilot-sessions
 
+  # Live-process tests use sysctl here. go fix and gofmt don't depend on the OS: build-test only.
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test ./...
+
   goreleaser-check:
     runs-on: ubuntu-latest
     steps:

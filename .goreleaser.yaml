@@ -20,8 +20,9 @@ builds:
     binary: copilot-sessions
     env:
       - CGO_ENABLED=0
-    # Linux only: status detection reads /proc (darwin: CS-009, windows: CS-010).
+    # Status detection: /proc on linux, sysctl on darwin (windows: CS-010).
     goos:
+      - darwin
       - linux
     goarch:
       - amd64

@@ -55,12 +55,13 @@ the file + one dated `## History` line, and the board regenerates. Prefer
 
 ## Platform
 
-Developed on macOS; the binary targets Linux (WSL) and reads `/proc` for process
-detection. Consequences:
+Developed on macOS. The binary targets Linux (WSL) and macOS. Process detection is per OS:
+`internal/session/session_linux.go` reads `/proc`, `session_darwin.go` uses sysctl, and
+`session_other.go` is the no-op fallback. Consequences:
 
-- Tests that need `/proc` skip on non-Linux (`runtime.GOOS != "linux"`); everything
-  else runs on both.
-- Validate `/proc`-dependent behaviour on Linux before a ticket leaves review:
-  `just test-linux` runs the suite in a Docker container from macOS. Checks against
-  real Copilot data (the CS-005 cutover) still run on WSL.
-- Build for the target with `GOOS=linux GOARCH=amd64` (no CGO).
+- Live-process tests (`TestLoadOngoing`, `TestDefaultAncestors`, `TestCleanOngoing`) run on
+  Linux and macOS and skip elsewhere; everything else runs everywhere.
+- Validate the Linux path before a ticket leaves review: `just test-linux` runs the suite in
+  a Docker container from macOS (CI's `test-macos` job covers darwin). Checks against real
+  Copilot data (the CS-005 cutover) still run on WSL.
+- Build for a target with `GOOS=linux|darwin GOARCH=amd64|arm64` (no CGO).

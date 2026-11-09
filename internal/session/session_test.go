@@ -100,9 +100,9 @@ func TestLoadFixture(t *testing.T) {
 	}
 }
 
-func TestLoadOngoingLinux(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("needs /proc")
+func TestLoadOngoing(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("needs process detection")
 	}
 	fx := testfix.Build(t)
 	ss, err := Load(t.Context(), fx.Home, map[int]bool{fx.OngoingPID: true})
@@ -120,7 +120,7 @@ func TestDefaultAncestors(t *testing.T) {
 	if !pids[os.Getpid()] || pids[1] {
 		t.Errorf("ancestors = %v", pids)
 	}
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		return
 	}
 	// The fixture's helper is a child of this process, so the walk must reach us.

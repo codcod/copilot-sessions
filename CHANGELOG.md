@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS support: correct `ongoing`/`stale` status and darwin release archives (CS-009).
+
 ### Changed
 
 - `copilot-sessions version` prints the version; the `--version` flag is gone and now exits 2
