@@ -35,7 +35,7 @@ const (
 type Fixture struct {
 	Home, BackupDir string
 	OngoingPID      int
-	OngoingLive     bool // the ongoing lock PID is a live copilot-test process (Linux and macOS)
+	OngoingLive     bool // the ongoing lock PID is a live copilot-test process (Linux, macOS and Windows)
 }
 
 // Build creates the fixture under t.TempDir() and points COPILOT_HOME and
@@ -47,7 +47,7 @@ func Build(t testing.TB) *Fixture {
 	t.Setenv("COPILOT_HOME", fx.Home)
 	t.Setenv("COPILOT_BACKUP_DIR", fx.BackupDir)
 
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
 		fx.OngoingPID = startCopilotHelper(t, root)
 		fx.OngoingLive = true
 	}
@@ -94,20 +94,34 @@ func Build(t testing.TB) *Fixture {
 // argv contains "copilot", and returns its PID. A symlink, not a copy: macOS kills a copied
 // platform binary (its code signature no longer matches). The link keeps the name sleep
 // because a multicall coreutils (uutils, Ubuntu 26.04+) picks the applet from argv[0]'s
-// basename.
+// basename. Windows has no sleep and needs privilege for symlinks, so it copies PING.EXE to
+// Copilot-Test\Copilot-Test.exe instead; the mixed case proves the case-insensitive match.
 func startCopilotHelper(t testing.TB, dir string) int {
-	src, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Fatal(err)
+	bin, args := filepath.Join(dir, "copilot-test", "sleep"), []string{"300"}
+	if runtime.GOOS == "windows" {
+		bin, args = filepath.Join(dir, "Copilot-Test", "Copilot-Test.exe"), []string{"-n", "300", "127.0.0.1"}
 	}
-	bin := filepath.Join(dir, "copilot-test", "sleep")
 	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(src, bin); err != nil {
-		t.Fatal(err)
+	if runtime.GOOS == "windows" {
+		b, err := os.ReadFile(filepath.Join(os.Getenv("SystemRoot"), "System32", "PING.EXE"))
+		if err == nil {
+			err = os.WriteFile(bin, b, 0o755)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		src, err := exec.LookPath("sleep")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(src, bin); err != nil {
+			t.Fatal(err)
+		}
 	}
-	cmd := exec.Command(bin, "300")
+	cmd := exec.Command(bin, args...)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}

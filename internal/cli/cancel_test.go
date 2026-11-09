@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -120,6 +121,10 @@ func TestPermissionErrors(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("root ignores permissions")
 	}
+	if runtime.GOOS == "windows" {
+		// ponytail: Windows ignores chmod 0; denying access there needs ACLs, not worth the code.
+		t.Skip("Unix permission bits")
+	}
 	fx := testfix.Build(t)
 	os.Chmod(fx.Home, 0)
 	t.Cleanup(func() { os.Chmod(fx.Home, 0o700) })
@@ -159,6 +164,7 @@ func TestReadLineZeroEnv(t *testing.T) {
 func TestCwdTilde(t *testing.T) {
 	fx := testfix.Build(t)
 	t.Setenv("HOME", "/home/u")
+	t.Setenv("USERPROFILE", "/home/u") // os.UserHomeDir on Windows
 	if got := mustRun(t, fx, "list", "-q", "--cwd", "~/proj"); got != testfix.DBOnly+"\n"+testfix.EmptyStartShutdown+"\n"+testfix.Titled+"\n" {
 		t.Errorf("got %q", got)
 	}

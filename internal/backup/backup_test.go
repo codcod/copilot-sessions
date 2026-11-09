@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -84,7 +85,7 @@ func TestCreate(t *testing.T) {
 	if err := Create(t.Context(), fx.Home, target, true); err != nil {
 		t.Fatal(err)
 	}
-	if fi, _ := os.Stat(target); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(target); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Errorf("archive mode %v", fi.Mode().Perm())
 	}
 	hdrs, dbBytes := readArchive(t, target)
@@ -189,8 +190,8 @@ func TestCreateGrowingFile(t *testing.T) {
 
 // A failed backup leaves neither the target nor its temp file behind.
 func TestCreateFailureLeavesNothing(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root reads mode-0 files")
+	if os.Geteuid() == 0 || runtime.GOOS == "windows" {
+		t.Skip("root reads mode-0 files; Windows has no Unix permission bits")
 	}
 	home := t.TempDir()
 	p := filepath.Join(home, "session-state", "s", "events.jsonl")
@@ -247,8 +248,8 @@ func TestListErrors(t *testing.T) {
 			t.Errorf("%s: %v, %v", p, got, err)
 		}
 	}
-	if os.Geteuid() == 0 {
-		t.Skip("root ignores dir modes")
+	if os.Geteuid() == 0 || runtime.GOOS == "windows" {
+		t.Skip("root ignores dir modes; Windows has no Unix permission bits")
 	}
 	locked := filepath.Join(dir, "p")
 	os.Mkdir(locked, 0)
