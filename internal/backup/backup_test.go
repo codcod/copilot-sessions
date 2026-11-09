@@ -164,7 +164,7 @@ func TestCreateGrowingFile(t *testing.T) {
 	stop, done := make(chan bool), make(chan bool)
 	go func() {
 		defer close(done)
-		for i := 0; i < 1<<12; i++ { // up to 16 MiB more
+		for range 1 << 12 { // up to 16 MiB more
 			select {
 			case <-stop:
 				return
@@ -174,7 +174,7 @@ func TestCreateGrowingFile(t *testing.T) {
 		}
 	}()
 	defer func() { close(stop); <-done; f.Close() }()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		target := filepath.Join(t.TempDir(), "b.tar.gz")
 		if err := Create(home, target, true); err != nil {
 			t.Fatalf("run %d: %v", i, err)

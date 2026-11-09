@@ -23,12 +23,13 @@ test-linux:
       -v go-mod:/go/pkg/mod -v go-build:/root/.cache/go-build \
       golang:{{go_version}} go test -count=1 ./...
 
-# Static checks: formatting + go vet
+# Static checks: formatting + go vet + go fix modernizers
 [group('qa')]
 lint:
     @unformatted="$(gofmt -l .)"; \
       if [ -n "$unformatted" ]; then echo "gofmt drift:"; echo "$unformatted"; exit 1; fi
     go vet ./...
+    go fix -diff ./...
 
 # Check formatting only
 [group('qa')]

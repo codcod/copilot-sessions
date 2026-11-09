@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -93,11 +94,8 @@ func Load(home string, ancestors map[int]bool, withSize bool) ([]Session, error)
 		s.Status = "closed"
 		if locked {
 			s.Status = "stale"
-			for _, p := range pids {
-				if pidIsCopilot(p) {
-					s.Status = "ongoing"
-					break
-				}
+			if slices.ContainsFunc(pids, pidIsCopilot) {
+				s.Status = "ongoing"
 			}
 		}
 		if entry, ok := open[s.ID].(map[string]any); ok {

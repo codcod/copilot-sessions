@@ -90,7 +90,7 @@ func allDigits(s string) bool {
 func ParseStatuses(value string) (map[string]bool, error) {
 	set := map[string]bool{}
 	ok := true
-	for _, item := range strings.Split(value, ",") {
+	for item := range strings.SplitSeq(value, ",") {
 		item = strings.ToLower(strings.TrimSpace(item))
 		if item == "" {
 			continue

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -126,8 +127,8 @@ func swapItems(home, tmp string) (keepTmp bool, err error) {
 		if err == nil {
 			return
 		}
-		for i := len(done) - 1; i >= 0; i-- {
-			if rename(done[i].to, done[i].from) != nil {
+		for _, d := range slices.Backward(done) {
+			if rename(d.to, d.from) != nil {
 				keepTmp = true
 			}
 		}
