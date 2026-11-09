@@ -554,7 +554,7 @@ Checklist:
 
 Verdict: rework (R1, R2).
 
-### Rework fix record — round 1 (commits 5df1463..64f1d73)
+### Rework fix record — round 1 (commits 2502b73..fc8ba41)
 
 - R1: `Execute` prints `Aborted.`/130 only for `errors.Is(err, context.Canceled)`; every other error is reported even after a cancel. `session.dbSessions`/`HasTurns` (new `ctxErr`) and `backup.snapshotDB` return `ctx.Err()` in place of the driver's interrupt error once ctx is done, so a cancelled query still classifies as a cancel. Spec §6 gains the rule. Regression: `TestCancelDoesNotHideErrors` (cancelled `restore` of a missing file → `error: backup not found`, exit 1; cancel during the swap with a failing rollback → the `old data kept in …` error, not a cancel). Fails with the old `ctx.Err() != nil` check.
 - R2: `backup.Create` checks `ctx.Err()` immediately before publishing. Regression: `TestCreateCancelledBeforePublish` (cancelled ctx, empty home, existing FILE → `context.Canceled`, FILE unchanged, no temp file). Fails without the check.
@@ -563,7 +563,7 @@ Verdict: rework (R1, R2).
 - R6: `TestResolveVersion` restored.
 - R7: dead `defer stop()` removed from `main`.
 
-Gate re-run on 64f1d73: `just lint`, `go mod tidy -diff`, `go test -race ./...`, `just test-linux`, `TestRestoreCompat` PASS, acceptance greps clean, pty `^C` at `Continue? [y/N]` → 130 `Aborted.` with no `tmp*`.
+Gate re-run on fc8ba41 (rebased onto main after the record move; same tree as 64f1d73): `just lint`, `go mod tidy -diff`, `go test -race ./...`, `just test-linux`, `TestRestoreCompat` PASS, acceptance greps clean, pty `^C` at `Continue? [y/N]` → 130 `Aborted.` with no `tmp*`.
 
 ## History
 
