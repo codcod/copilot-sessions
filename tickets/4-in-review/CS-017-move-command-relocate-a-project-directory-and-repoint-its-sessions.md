@@ -261,6 +261,16 @@ Verdict: rework (F1–F4).
 - [x] Findings recorded (step 5).
 - [x] Ticket moved to `5-rework/` (step 6).
 
+### Rework fix record — round 1 (commits f82efee..99ac632)
+
+- F1: `runMove` matches sessions against OLD both as given and with symlinks resolved (`resolveSymlinks`, which falls back to the parent for a manual move). `Repoint`/`RebaseAny` take every root. Test `TestMoveSymlink`. cprobe: `move /work/link/app /work/app2` repointed the session recorded at `/data/real/app`.
+- F2: `unquoteYAML` reads single- and double-quoted values; `Load` unquotes `cwd`/`git_root` (`yamlPath`), and the rewrite keeps the quotes. A double-quoted value it cannot unquote is reported as `failed:`, never skipped. Test `TestMoveQuoted`. cprobe: Copilot wrote `cwd: '/work/p: q'`; `list --cwd` found it and `move` rewrote it to `'/work/r: s'`.
+- F3: a NEW with a control character is a usage error (exit 2). NEW is single-quoted when YAML needs it (`needsQuote`). Covered by `TestMoveRefused` and `TestMoveQuoted`. cprobe: a NEW with a newline exits 2.
+- F4: after the confirm, `moveSides` and `moveSelection` run again; a change stops the move with nothing done. Test `TestMoveRecheckAfterConfirm` (stdin creates NEW while answering).
+- Inline fixes: F8 (`repointDB` updates from `s.DBCwd`, no SELECT), F9 (`moveSelection` calls `session.Load` + `Sort`), F11 (`TestMoveFailedSession`, which also covers the rerun), F12 (`TestMoveConfirmNo`).
+- Spec §6.6 updated for F1–F4. Mutation checks: disabling the F1 symlink root, the F4 re-check or the F2 unquote each makes its test fail.
+- `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: user asked for a way to move a project folder Copilot was used in; findings from a Copilot CLI 1.0.108 probe in Docker
@@ -270,3 +280,4 @@ Verdict: rework (F1–F4).
 - 2026-11-09 — plan amended inline: decision 3 also selects by DB `sessions.cwd` (new `Session.DBCwd`), found in the cprobe check, where a session whose YAML was already repointed kept a stale DB row and a rerun skipped it, which broke decision 9; covered by `TestMoveRerunFinishesDB`
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green: lint, test, test-linux, cprobe real-data check
 - 2026-11-09 — IN REVIEW → REWORK: 4 blocking findings (F1-F4)
+- 2026-11-09 — REWORK → IN REVIEW: findings fixed (F1-F4)
