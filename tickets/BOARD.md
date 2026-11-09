@@ -38,6 +38,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | low | low | S | [] |  |
 
 ## TO DO (impact order, per child)
 
@@ -45,7 +46,6 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | low | low | S | [] |  |
 
 ## DONE
 
