@@ -13,18 +13,18 @@ Last updated: 2026-11-09
 
 ## IN DEVELOPMENT
 
+### copilot-sessions (0/1)
+
+| id | title | depends-on |
+|---|---|---|
+
+## IN REVIEW
+
 ### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
 | CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | [] |
-
-## IN REVIEW
-
-### copilot-sessions (0/1)
-
-| id | title | depends-on |
-|---|---|---|
 
 ## REWORK
 
