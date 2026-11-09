@@ -20,8 +20,7 @@ CI's `test-windows` job passes on `main`. It has failed since CS-010 merged (PR 
 The `test-windows` run on PR #13 was CS-010's first run on real Windows, and it ended after the merge. Process detection, symlinks and the open-file restore all passed (`internal/session` ok; `TestRestoreOpenFile` passed). Two tests failed:
 
 1. **`TestExtractUnsafeWindowsPaths`** (`internal/backup/restore_windows_test.go:18`): `nul.txt: err <nil>`. Windows 11, and Go's `filepath.IsLocal` along with it, no longer treats a reserved name with an extension as a device. `nul.txt` is therefore an ordinary local file, and extracting it is safe. The test's expectation is wrong.
-2. **`TestRestoreCompat`** (`internal/cli/restore_test.go:210`): the expected and actual ID lists look identical. Python on Windows writes `
-` in text mode, so `pythonRunner`'s output (`restore_test.go:238`) carries CRs that the Go side doesn't.
+2. **`TestRestoreCompat`** (`internal/cli/restore_test.go:210`): the expected and actual ID lists look identical. Python on Windows writes `\r\n` in text mode, so `pythonRunner`'s output (`restore_test.go:238`) carries CRs that the Go side doesn't.
 
 ## Implementation Plan
 
@@ -70,3 +69,4 @@ Commit `test: fix Windows reserved-name and Python line-ending expectations (CS-
 
 - 2026-11-09 — created (TO DO). source: pickle ticket new
 - 2026-11-09 — TO DO → READY: plan complete
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no blocking findings (Description typo fixed)
