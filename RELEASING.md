@@ -27,7 +27,8 @@ has two Linux tarballs, `copilot-sessions_X.Y.Z_linux_amd64.tar.gz` and
 ## Re-run a release
 
 Actions → release → Run workflow, with an existing tag. `mode: replace` overwrites the assets
-that are already there.
+that are already there. The re-run also reaches the Cloudsmith step, so with
+`CLOUDSMITH_API_KEY` set it re-pushes the rebuilt `.deb` files (`--republish`).
 
 ## Debian/Ubuntu packages (Cloudsmith)
 
