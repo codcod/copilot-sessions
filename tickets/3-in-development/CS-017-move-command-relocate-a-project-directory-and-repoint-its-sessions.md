@@ -117,7 +117,7 @@ none
 
 ### Tasks
 
-#### Task 1 — move prefix matching into `session` (`internal/session/path.go`, new)
+#### Task 1 — move prefix matching into `session` (`internal/session/path.go`, new; the Windows test goes in `path_windows_test.go`)
 - `filter` imports `session`, so the shared helpers live in `session`. Move `under` from
   `internal/filter/filter.go` to `session.Under`, unchanged, and have `filter.Apply` call
   it.
@@ -155,13 +155,13 @@ none
   2. Usage error (exit 2) if they are equal, or if NEW is under OLD.
   3. `os.Lstat` both: both present → error `NEW already exists`; neither present → error
      `OLD does not exist`; only NEW present → `manual := true`.
-  4. `load` all sessions, then select by decision 3. Print the table with `printTable`, then
+  4. `load` all sessions (with sizes, `sized=true`, for `printTable`), then select by decision 3. Print the table with `printTable`, then
      `N session(s) to repoint (cwd under OLD)`.
   5. If any selected session is ongoing or current, error `N ongoing session(s) under OLD;
      close them first` and change nothing.
   6. With `-n`: print `Dry run: nothing moved.` and stop.
   7. Ask `confirm("Move OLD to NEW and repoint these sessions?")`; on no, print `Aborted.`.
-  8. Unless `manual`: `os.Rename(old, new)`, wrapping errors per decision 8.
+  8. Last-chance `ctx.Err()` check, as `clean` does. Unless `manual`: `os.Rename(oldPath, newPath)`, wrapping errors per decision 8. Name the parameters `oldPath`/`newPath`, not `new`.
   9. `Repoint`.
   10. Print `Moved OLD to NEW.` (or `OLD already moved; repointed sessions only.`) and
       `Repointed N session(s).`. Failures go to stderr with `failed: <id>: <err>`, and the
@@ -175,11 +175,14 @@ none
 - A real move: write a session whose `cwd` and `git_root` are a fresh `t.TempDir()/proj`,
   plus one session in `proj/sub` with `git_root` set to `proj`. After
   `move proj moved -y`, the folder is at `moved`, both YAMLs point under `moved` with every
-  other line byte-identical, and the DB `sessions.cwd` is rewritten. An unrelated session
-  (`/home/u/projX`) is unchanged, which also covers the `/a/b` vs `/a/bc` case.
+  other line byte-identical, and the DB `sessions.cwd` is rewritten. A sibling session in
+  `t.TempDir()/projX` is unchanged, which covers the `/a/b` vs `/a/bc` case.
 - A manual move: OLD missing, NEW present, so sessions are repointed and nothing is moved.
 - Refusals: NEW exists; neither exists; NEW under OLD (exit 2); an ongoing session under
-  OLD. Each leaves both disk and the snapshot (`snapshot()`) unchanged.
+  OLD. For that last one, rewrite the fixture Ongoing session's YAML cwd into the temp tree,
+  and `t.Skip` when `!fx.OngoingLive`, as `TestCleanOngoing` does. Each refusal leaves both
+  disk and the snapshot (`snapshot()`) unchanged.
+- Add `move` to `TestHelp` (`internal/cli/list_test.go`) for its Short and example.
 - `-n` changes nothing. A missing DB still repoints the YAMLs.
 
 ### Acceptance test
@@ -209,7 +212,7 @@ still works.
 - `README.md`: add a `move` line to the Usage block and the command list, plus a short
   example section "Move a project folder". The section says that history, rewind snapshots and
   trusted folders keep the old path.
-- `development/spec.md`: add a `move` section with the flow, the decisions above and the
+- `development/spec.md`: add `move` to the §7 command list (with its example), and add a `move` section with the flow, the decisions above and the
   `workspace.yaml` keys (`git_root`), and add `move` to the completion table in §8.
 - `CHANGELOG.md`: under Unreleased, "Added: `move` command: moves a project folder and
   repoints its sessions (CS-017)".
@@ -231,3 +234,5 @@ still works.
 
 - 2026-11-09 — created (TO DO). source: chat: user asked for a way to move a project folder Copilot was used in; findings from a Copilot CLI 1.0.108 probe in Docker
 - 2026-11-09 — TO DO → READY: plan complete; defaults confirmed by user
+- 2026-11-09 — plan amended inline: applicability gate (independent sub-agent) found no blocking findings; folded in the test sibling `projX`, the ongoing-test skip, sized load, a last-chance ctx check, the TestHelp/spec §7 entries and the Windows test file; noted quoted-YAML and YAML-over-DB selection as known limits
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up, branch feat/CS-017-move-command
