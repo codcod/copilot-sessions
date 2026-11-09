@@ -25,6 +25,15 @@ vs `stale`), and `ancestorsFrom(pid)` reads the parent PID from `/proc/<pid>/sta
 (the current-session marker). Without `/proc`, every locked session reads as `stale` and
 `DefaultAncestors` returns only the process's own PID.
 
+**State after CS-013 (re-verified 2026-11-09).** CS-013 left both functions' signatures alone
+(`pidIsCopilot(pid int) bool`, `ancestorsFrom(pid int) map[int]bool`, now at
+`session.go:357–388`) and fixed C5 (`ancestorsFrom` checks `i < 0` before slicing), so the
+Linux bodies move verbatim. `session.Load` now takes `ctx` first and `Status` is a typed string,
+but neither touches process detection. `golang.org/x/sys` is still v0.49.0 and indirect after
+CS-013's dependency upgrade. `just lint` and CI's `build-test` now also run `go fix -diff`.
+`.goreleaser.yaml` builds linux only (a comment there names this ticket), and its `nfpms` .deb
+packages (CS-011) are linux-only by nature, so the Cloudsmith push is unaffected.
+
 **Approach.** Keep both signatures and move the bodies into build-tagged files:
 `session_linux.go` (current code, unchanged) and `session_darwin.go`. Callers don't change.
 On darwin, use `golang.org/x/sys/unix`, which is already in the module graph (v0.49.0,
@@ -45,7 +54,7 @@ installed on the dev Mac, so the plan checks this before any code and stops if i
 
 **Also in scope.** Un-skip the `/proc`-gated tests on darwin (`internal/session/session_test.go`,
 `internal/cli/clean_test.go`, `internal/testfix/testfix.go`). Update the spec's platform line
-(`development/spec.md:12`) and AGENTS.md's Platform section. Add `darwin` to `goos` in
+(`development/spec.md:14`) and AGENTS.md's Platform section. Add `darwin` to `goos` in
 `.goreleaser.yaml` and a `macos-latest` job to `ci.yml`.
 
 **Out of scope.** Windows support, filed separately as CS-010.
@@ -69,8 +78,8 @@ print nothing. Merging is the human's.
 
 ### Prerequisite gate (hard)
 
-1. **CS-008 is in `6-done/` and merged to `main`.** `.goreleaser.yaml` and
-   `.github/workflows/ci.yml` must exist.
+1. **CS-008 and CS-013 are in `6-done/` and merged to `main`** (both are, as of 2026-11-09).
+   `.goreleaser.yaml` and `.github/workflows/ci.yml` must exist.
 2. **The lock layout is verified on macOS before any code.** Install Copilot CLI on the Mac,
    start a session, and from another terminal run:
    ```
@@ -112,11 +121,12 @@ print nothing. Merging is the human's.
 ### Tasks
 
 #### Task 1: split by OS
-Move `pidIsCopilot` and `ancestorsFrom` from `internal/session/session.go` (around lines
-316–343) into `internal/session/session_linux.go` unchanged. Add `session_other.go` with the
-fallback from decision 2. Update the `DefaultAncestors` comment: on Linux and macOS it walks
-the real ancestry, elsewhere it returns its own PID. Remove the imports that `session.go` no
-longer uses. Check: `GOOS=windows go vet ./...` still passes.
+Move `pidIsCopilot` and `ancestorsFrom` from `internal/session/session.go` (lines 357–360
+and 366–388 after CS-013) into `internal/session/session_linux.go` unchanged. Add `session_other.go` with the
+fallback from decision 2. Update the `DefaultAncestors` comment (today: "Without /proc
+(macOS) it returns only the process's own PID"): on Linux and macOS it walks the real ancestry,
+elsewhere it returns its own PID. Remove the imports that `session.go` no longer uses (`bytes`,
+`fmt`, `strconv` are still used elsewhere in the file; let the compiler decide). Check: `GOOS=windows go vet ./...` still passes.
 
 #### Task 2: darwin implementation
 Add `internal/session/session_darwin.go`:
@@ -134,12 +144,17 @@ Add `internal/session/session_darwin.go`:
 - Un-skip the live-process tests on darwin. In `internal/session/session_test.go` (the
   `TestLoadOngoingLinux` skip and `TestDefaultAncestors`'s early return), widen the condition
   to `linux || darwin` and rename the test to `TestLoadOngoing`. In
-  `internal/testfix/testfix.go:50`, use the same condition. `internal/cli/clean_test.go`
-  follows `fx.OngoingLive`, so it needs no edit.
+  `internal/testfix/testfix.go:49` (`if runtime.GOOS == "linux"`), use the same condition and
+  fix the `OngoingLive` field comment "(Linux only)". `internal/cli/clean_test.go:94` follows
+  `fx.OngoingLive`, so only its skip text ("needs /proc …") changes to "needs a live ongoing
+  session".
 
 #### Task 4: release and CI
-`.goreleaser.yaml`: `goos: [darwin, linux]`. `.github/workflows/ci.yml`: add the
-`test-macos` job (`runs-on: macos-latest`; checkout, setup-go, vet, test).
+`.goreleaser.yaml`: `goos: [darwin, linux]`, and replace the "Linux only … (darwin: CS-009,
+windows: CS-010)" comment with one naming only CS-010. Leave `nfpms` alone (linux-only).
+`.github/workflows/ci.yml`: add the `test-macos` job (`runs-on: macos-latest`; checkout,
+setup-go with `go-version-file: go.mod`, `go vet ./...`, `go test ./...`). `go fix` and `gofmt`
+stay only in `build-test`, because they don't depend on the OS.
 
 ### Acceptance test
 
@@ -150,8 +165,8 @@ go test -count=1 -v -run 'Ongoing|Ancestors|Procargs' ./internal/... 2>&1 | grep
 #   -> TestLoadOngoing, TestDefaultAncestors, TestCleanOngoing, procargs tests: PASS, none SKIP
 just test-linux                              # Linux unchanged
 GOOS=windows GOARCH=amd64 go vet ./...       # fallback still compiles
-just dist-check && just dist-snapshot && ls dist/*.tar.gz
-#   -> four archives: darwin_{amd64,arm64}, linux_{amd64,arm64}
+just dist-check && just dist-snapshot && ls dist/*.tar.gz dist/*.deb
+#   -> four archives: darwin_{amd64,arm64}, linux_{amd64,arm64}; two .deb (amd64, arm64) only
 ```
 
 Manual check with a real Copilot session. From a shell inside Copilot,
@@ -161,13 +176,13 @@ leftover lock it shows `stale`. CI's `test-macos` job is green on the PR.
 
 ### Docs update (mandatory when user-facing)
 
-- `development/spec.md:12`: the platform line becomes Linux (WSL) and macOS, with process
+- `development/spec.md:14`: the platform line becomes Linux (WSL) and macOS, with process
   detection from `/proc` on Linux and sysctl on macOS.
 - `AGENTS.md` *Platform*: macOS is now a target. `/proc` tests are now "live-process tests";
   they run on Linux and macOS. `just test-linux` is still needed for the Linux path.
 - `README.md`: release archives include macOS; mention that unsigned binaries need
   `xattr -d com.apple.quarantine copilot-sessions` after a browser download.
-- `CHANGELOG.md` `[Unreleased]` → `### Added`: "macOS support: correct ongoing/stale status
+- `CHANGELOG.md` `[Unreleased]` → add an `### Added` section above the existing `### Changed`: "macOS support: correct ongoing/stale status
   and darwin release archives (CS-009)."
 
 ### Finish (mandatory)
@@ -191,3 +206,4 @@ leftover lock it shows `stale`. CI's `test-macos` job is green on the PR.
 
 - 2026-11-08 — created (TO DO). source: review: CS-008 platform exploration found /proc use confined to two functions; macOS portable via x/sys/unix
 - 2026-11-08 — TO DO → READY: plan complete
+- 2026-11-09 — re-refined after CS-013 (stays READY): line refs, test-skip and goreleaser/CI details updated to the post-CS-013 tree; approach and decisions unchanged

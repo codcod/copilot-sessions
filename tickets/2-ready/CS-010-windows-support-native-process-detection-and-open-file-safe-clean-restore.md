@@ -49,10 +49,21 @@ without share-delete, and SQLite locks are mandatory there. At risk:
 - `backup` reading live files and `session-store.db` (CS-007's live-file races take a
   different form).
 
-Archive entry names already use `filepath.ToSlash` (`internal/backup/backup.go:147`).
+Archive entry names already use `filepath.ToSlash` (`internal/backup/backup.go:159`).
 Restore's safe-extraction checks (CS-004) use `filepath.IsLocal`, which already rejects
 drive letters, backslash traversal and reserved names (`CON`, `NUL`…) on Windows. Only
 tests are missing.
+
+**State after CS-013 (re-verified 2026-11-09).** Three things CS-013 changed help here and
+need no work: TTY detection is `term.IsTerminal` (C6), which is correct on Windows consoles;
+Ctrl-C is `signal.NotifyContext(…, os.Interrupt)` (X1), which Windows delivers; and the
+`rename` that `swapItems` uses is now a parameter of `restore(ctx, env, args, yes, rename)`
+(`internal/cli/restore.go:43`, D6) rather than a package global, so the Windows restore test
+can pass `os.Rename` directly. One new gap: CS-013's permission-error tests (C1/C3) and the older
+mode assertions rely on Unix permission bits. On Windows `chmod 0` doesn't block reads, modes
+read back as `0o666`/`0o444`, and `os.Getuid`/`Geteuid` return -1, so the existing root guards
+never skip. Those tests fail on Windows as written (task 2b). Cobra's default `completion`
+command already includes `powershell`; only the README (line 36, "bash|zsh|fish") omits it.
 
 **3. Unverified environment (prerequisite gate of the plan).** The default `COPILOT_HOME`
 on Windows (assumed `%USERPROFILE%\.copilot`) and whether Copilot CLI writes the same
@@ -61,7 +72,8 @@ on Windows (assumed `%USERPROFILE%\.copilot`) and whether Copilot CLI writes the
 **Boundary.** A Windows binary can't see processes inside WSL, nor the reverse. Sessions
 from the other side read as `stale`. Document it; don't try to bridge it.
 
-**Also in scope.** Un-skip the `/proc`-gated tests on Windows. Add a `windows-latest` CI job
+**Also in scope.** Un-skip the `/proc`-gated tests on Windows, and skip the Unix-permission
+tests there. Add a `windows-latest` CI job
 (pickle's `windows-smoke` is the model). Add `windows` to `goos` with a zip
 `format_overrides`, as pickle does. Document `completion powershell` in the README. Update
 the spec's platform line and AGENTS.md.
@@ -86,7 +98,8 @@ print nothing. Merging is the human's.
 
 ### Prerequisite gate (hard)
 
-1. **CS-008 and CS-009 are in `6-done/` and merged to `main`.** `.goreleaser.yaml`,
+1. **CS-008, CS-009 and CS-013 are in `6-done/` and merged to `main`** (CS-008 and CS-013 are,
+   as of 2026-11-09). `.goreleaser.yaml`,
    `ci.yml` and the `session_{linux,darwin,other}.go` split must exist.
 2. **The environment is verified on native Windows before any code** (not WSL). Install
    Copilot CLI, start a session, and in PowerShell run:
@@ -118,12 +131,12 @@ print nothing. Merging is the human's.
    read the `NTUnicodeString` at the start of the buffer. `ExeFile` alone is not enough
    (`node.exe`). Any error, such as access denied or the process having exited, reads as
    `false`.
-4. **`restore` gets no new guard.** `swapItems` (`internal/cli/restore.go`) already undoes
+4. **`restore` gets no new guard.** `swapItems` (`internal/cli/restore.go:113`) already undoes
    every move when a rename fails. A file Windows holds open therefore aborts the restore and
    leaves `COPILOT_HOME` as it was. Acceptance proves this on Windows; no code changes.
 5. **`clean` is unchanged, and its Windows caveat is documented.** Ongoing sessions are
    skipped by default. With `--include-ongoing`, Windows may refuse to delete open files.
-   `os.RemoveAll` errors are ignored (`internal/session/delete.go:25`), so a partial directory
+   `os.RemoveAll` errors are ignored (`deleteSessions`, `internal/session/delete.go:38`), so a partial directory
    can remain. The README says so; there is no code change.
 6. **Safe extraction is unchanged, and Windows test cases are added.** `filepath.IsLocal`
    (`internal/backup/restore.go:61`) already rejects drive letters, `..\`, and reserved names
@@ -134,7 +147,16 @@ print nothing. Merging is the human's.
 8. **WSL ↔ Windows is a documented boundary.** Each side reads the other's sessions as
    `stale`, and there is no bridging.
 9. **Release and CI:** `goos` gains `windows` with a zip `format_overrides` (as pickle does).
-   `ci.yml` gains a `test-windows` job (`windows-latest`, `shell: bash`, vet + test).
+   `ci.yml` gains a `test-windows` job (`windows-latest`, `shell: bash`, vet + test). `nfpms`
+   stays linux-only; update the `goos` comment in `.goreleaser.yaml` that names this ticket.
+10. **Unix-permission tests skip on Windows. They are not ported.** Each test or assertion
+    that depends on mode bits gets `if runtime.GOOS == "windows" { t.Skip("Unix permission
+    bits") }`. Where only one assertion inside a larger test depends on mode bits, only that
+    assertion is guarded, so the rest of the test still runs. Simulating `EACCES` on Windows with
+    ACLs is not worth the code (`ponytail:` comment at one site naming the gap).
+    Symlink tests (`TestLoadEdgePaths`'s `os.Symlink`, restore's symlink entries) stay as they
+    are: GitHub's Windows runners can create symlinks. If one fails locally without Developer
+    Mode, that is an environment issue, not a skip.
 
 ### Tasks
 
@@ -148,6 +170,18 @@ tag. `go mod tidy` (x/sys is already direct after CS-009).
 `internal/session/session_test.go`, add `windows` to the live-process conditions CS-009
 widened.
 
+#### Task 2b: Unix-permission tests (decision 10)
+Guard the mode-bit dependencies found at refinement (2026-11-09):
+`internal/cli/cancel_test.go` `TestPermissionErrors` (`chmod 0`, whole test);
+`internal/session/session_test.go` `TestLoadEdgePaths` (the `chmod 0` block at ~294 only);
+`internal/backup/backup_test.go` `TestCreate` (mode assertions at ~87 and ~119),
+`TestCreateFailureLeavesNothing` (whole test), `TestListErrors` (the locked-dir part at ~251);
+`internal/cli/clean_test.go` `TestCleanDelete` (the sidebar mode assertion at ~187);
+`internal/backup/restore_test.go` `TestExtractModesAndLinks` (the mode check at ~44).
+Then let the `test-windows` CI run judge. Any further failure that is purely a mode-bit
+assumption gets the same guard. **Any other failure is a real Windows bug: stop and report it,
+and don't skip it.**
+
 #### Task 3: Windows tests
 - `internal/session/session_windows_test.go`: `ancestorsFrom(os.Getpid())` contains its own
   PID and reaches at least one parent. `pidIsCopilot(fx.OngoingPID)` is true and
@@ -155,8 +189,10 @@ widened.
 - `internal/backup/restore_windows_test.go`: `Extract` rejects archive entries named
   `C:/x`, `C:x`, `..\\x`, `CON`, `nul.txt` and `s/AUX` with "unsafe path".
 - `internal/cli/restore_windows_test.go`: open a file inside a current session with
-  `os.Open` (Windows refuses the rename without share-delete). `restore -y latest` must fail,
-  and afterwards `COPILOT_HOME`'s tree must be byte-identical to before (decision 4).
+  `os.Open` (Windows refuses the rename without share-delete). Then
+  `restore(t.Context(), env, []string{"latest"}, true, os.Rename)` must fail, and afterwards
+  `COPILOT_HOME`'s tree must be byte-identical to before (decision 4). Reuse `snapshot(t, fx)`
+  from `restore_test.go` rather than writing a new tree comparison.
 
 #### Task 4: release and CI
 `.goreleaser.yaml`: `goos: [darwin, linux, windows]`, plus
@@ -186,11 +222,11 @@ tab completion.
 ### Docs update (mandatory when user-facing)
 
 - `README.md`: Windows install (zip from Releases, put `copilot-sessions.exe` on `PATH`),
-  `completion powershell` (add it to `$PROFILE`), the WSL boundary (decision 8), and the
+  `completion powershell` (line 36 becomes `bash|zsh|fish|powershell`; add it to `$PROFILE`), the WSL boundary (decision 8), and the
   `--include-ongoing` caveat (decision 5).
-- `development/spec.md:12` and `AGENTS.md` *Platform*: add Windows (Toolhelp32 +
+- `development/spec.md:14` and `AGENTS.md` *Platform*: add Windows (Toolhelp32 +
   `NtQueryInformationProcess`) and note that live-process tests also run on Windows CI.
-- `CHANGELOG.md` `[Unreleased]` → `### Added`: "Windows support: native process detection,
+- `CHANGELOG.md` `[Unreleased]` → `### Added` (created by CS-009 if unreleased): "Windows support: native process detection,
   PowerShell completion and windows zip archives (CS-010)."
 
 ### Finish (mandatory)
@@ -215,3 +251,4 @@ tab completion.
 
 - 2026-11-08 — created (TO DO). source: review: CS-008 platform exploration; Windows split from CS-009 at user request
 - 2026-11-08 — TO DO → READY: plan complete
+- 2026-11-09 — re-refined after CS-013 (stays READY): line refs and restore test seam updated to the post-CS-013 tree; added decision 10 + task 2b (Unix-permission tests skip on Windows); approach otherwise unchanged
