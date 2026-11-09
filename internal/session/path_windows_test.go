@@ -1,4 +1,4 @@
-package filter
+package session
 
 import "testing"
 
@@ -12,8 +12,8 @@ func TestUnderWindowsCase(t *testing.T) {
 		{`C:\USERS\ME`, `c:\users\me`, true},
 		{`c:\Users\Me2`, `C:\Users\me`, false},
 	} {
-		if got := under(tt.path, tt.root); got != tt.want {
-			t.Errorf("under(%q, %q) = %v", tt.path, tt.root, got)
+		if got := Under(tt.path, tt.root); got != tt.want {
+			t.Errorf("Under(%q, %q) = %v", tt.path, tt.root, got)
 		}
 	}
 }
