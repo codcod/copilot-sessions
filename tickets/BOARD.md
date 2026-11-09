@@ -20,11 +20,10 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-010 | Windows support: native process detection and open-file-safe clean/restore | [CS-008, CS-009, CS-013] |
 
 ## REWORK
 
@@ -63,6 +62,7 @@ Last updated: 2026-11-09
 | CS-007 | backup robustness: atomic archive, live-file races and error reporting | yes — merged to main (PR #6, e8e6b91, https://github.com/codcod/copilot-sessions/commit/e8e6b91) |
 | CS-008 | Release process: tag-driven goreleaser builds, CI and changelog | yes — merged to main (PR #8, 5c4fdfe, https://github.com/codcod/copilot-sessions/commit/5c4fdfe) |
 | CS-009 | macOS support: native process detection for ongoing/stale status | yes — merged to main (PR #12, efa324e, https://github.com/codcod/copilot-sessions/commit/efa324e) |
+| CS-010 | Windows support: native process detection and open-file-safe clean/restore | yes — merged to main (PR #13, bb149b3, https://github.com/codcod/copilot-sessions/commit/bb149b3) |
 | CS-011 | Publish .deb packages to Cloudsmith on release | yes — merged to main (PR #9, 0fb09ce, https://github.com/codcod/copilot-sessions/commit/0fb09ce) |
 | CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | yes — merged to main (PR #10, 9ce75b0, https://github.com/codcod/copilot-sessions/commit/9ce75b0) |
 | CS-013 | Go 1.27 upgrade and idiomatic Go across the codebase | yes — merged to main (PR #11, b7b8117, https://github.com/codcod/copilot-sessions/commit/b7b8117) |
