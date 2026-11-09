@@ -38,6 +38,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-011 | Publish .deb packages to Cloudsmith on release | medium | low | S | [] |  |
 | CS-009 | macOS support: native process detection for ongoing/stale status | low | medium | M | [CS-008] |  |
 | CS-010 | Windows support: native process detection and open-file-safe clean/restore | low | medium | M | [CS-008, CS-009] |  |
 
@@ -47,7 +48,6 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-011 | Publish .deb packages to Cloudsmith on release | medium | low | S | [] |  |
 
 ## DONE
 
