@@ -78,7 +78,27 @@ Commit `fix(session): match copilot case-insensitively on macOS (CS-014)`. Then 
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+2026-11-09 — delegated review (independent reviewer sub-agent, hunt: one pass), branch `feat/CS-014-darwin-case-insensitive` @ 7b69fa1.
+
+- [x] Reviewer independence (step 0): delegated to a fresh sub-agent; no delegated findings discarded
+- [x] In-tree stale-branch check (step 0a): branch rebased onto main; `pickle doctor` 0 errors, 0 warnings
+- [x] Implementation audit (steps 1, 2): tasks 1–3 (amended Task 2 row) and decisions 1–3 verified. `just lint`, `just test`, `just test-linux`, `GOOS=windows go vet ./...` green. With Task 1 reverted, the new row fails
+- [x] Correctness hunt (step 3): one pass over all 8 angles by the delegated reviewer, no host tool and no further sub-agents. No defect in the diff. Unicode folding can only produce a false "ongoing", the safe direction (same as Windows)
+- [x] Consistency audit (step 4): repo-wide grep of case-matching claims; only N1
+- [x] Documentation audit (step 4a): spec §4.2 updated; README makes no case claim; no docs build
+- [x] Docs-readability pass (step 4b): conscious skip, a one-clause spec edit
+- [x] Findings recorded (step 5)
+- [x] Ticket moved to `6-done/` (step 6)
+- [x] References and governing docs (step 7): spec §4.2 reconciled on the branch
+- [x] Impact sweep (step 8): no TO DO/READY tickets remain
+- [ ] Commit message & MR presented for approval (step 9)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| N1 | non-blocking | correctness | noted | Windows `TestWindowsProcesses` live check computes `want` case-sensitively while the Windows matcher lowercases; a `-run` pattern containing `Copilot` fails spuriously (test-only, pre-existing since CS-010) | `internal/session/session_windows_test.go:22`; same mismatch reproduced on darwin in a scratch copy with `-run 'TestProcargsMatch\|NoSuchCopilot'` | one-line `strings.ToLower(a)` there; it predates this branch, so it is not fixed inline (rules §5 causation bar) |
+
+dispositions: 1 noted (N1); 0 fixed inline, 0 folded, 0 new ticket.
+cost: estimated S, actual S
 
 ## History
 
@@ -87,3 +107,4 @@ Commit `fix(session): match copilot case-insensitively on macOS (CS-014)`. Then 
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up; applicability gate: no findings
 - 2026-11-09 — plan amended inline: Task 2 row argc 3 → 1. `procargs`'s first argument is argc, not a row id, so argc 3 with one argv string reads as a truncated buffer and the row could never match.
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet; new row red without fix)
+- 2026-11-09 — IN REVIEW → DONE: review: no blocking findings; 1 noted (N1)

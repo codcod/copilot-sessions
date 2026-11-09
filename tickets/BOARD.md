@@ -20,11 +20,10 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-014 | macOS: match copilot case-insensitively in process detection | [] |
 
 ## REWORK
 
@@ -66,6 +65,7 @@ Last updated: 2026-11-09
 | CS-011 | Publish .deb packages to Cloudsmith on release | yes — merged to main (PR #9, 0fb09ce, https://github.com/codcod/copilot-sessions/commit/0fb09ce) |
 | CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | yes — merged to main (PR #10, 9ce75b0, https://github.com/codcod/copilot-sessions/commit/9ce75b0) |
 | CS-013 | Go 1.27 upgrade and idiomatic Go across the codebase | yes — merged to main (PR #11, b7b8117, https://github.com/codcod/copilot-sessions/commit/b7b8117) |
+| CS-014 | macOS: match copilot case-insensitively in process detection | no — publish-gated |
 | CS-015 | Fix the two Windows CI test failures after CS-010 | no — publish-gated |
 
 ## DROPPED
