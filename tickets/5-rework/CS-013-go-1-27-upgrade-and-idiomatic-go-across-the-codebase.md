@@ -521,7 +521,38 @@ From the repo root on the feature branch:
 
 ## Review
 
-<!-- empty until IN REVIEW -->
+### Review 1 — 2026-11-09 (branch `feat/CS-013-go-1-27-idiomatic` @ 2e9d5e3)
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| R1 | blocking | correctness | — | Once ctx is done, `Execute` replaces *every* error with `Aborted.`/130, including errors from steps that run to completion past the point of no return | Reproduced (delegated reviewer): `Execute(cancelledCtx, env, ["restore","-y","/nonexistent.tar.gz"])` → 130, stderr `"\nAborted.\n"`; the same call via `restore()` returns `backup not found: …`. Traced: Ctrl-C during `swapItems` + rename failure → `restore failed and rollback incomplete; old data kept in <tmp>/old` is hidden; a `pruneDB` failure inside `Delete` after dirs are gone reads as `Aborted.`. `internal/cli/cli.go` `Execute` (CS-013 decision 2, Task 5 X1/F2) | Classify cancellation at the source: DB helpers map a driver error to `ctx.Err()` when ctx is done; `Execute` prints `Aborted.`/130 only for `errors.Is(err, context.Canceled)` |
+| R2 | blocking | correctness | — | `backup.Create` never re-checks ctx after the walk, so a Ctrl-C after the last walk callback still publishes, and with an explicit FILE replaces the existing file, then reports `Aborted.` | unreproduced: timing window between the last `WalkDir` callback and `os.Rename`; traced `internal/backup/backup.go` `Create` → `tw.Close`/`gz.Close`/`f.Close` → `os.Rename(f.Name(), target)` with no ctx check; contradicts spec §6 "honoured up to each command's irreversible step" (CS-013 decision 10) | `if err := ctx.Err(); err != nil { return err }` immediately before the publish |
+| R3 | non-blocking | test-gap | noted | The `ctx.Err()` check right before `swapItems` has no test; `TestRestoreCancelled` cancels before `Extract`, so the extract-cancel path is what it exercises (Task 6 (c) partially met) | Mutation (delegated reviewer): deleting the check leaves `go test ./internal/cli -run 'Cancel\|Restore'` green | No seam between `Extract` returning and the check without a counting-ctx contortion; the check is a two-line guard verified by reading |
+| R4 | non-blocking | other | fixed inline | `go.mod` not tidy: `x/term` marked indirect though imported, `pflag` listed direct though no longer imported | `go mod tidy -diff` exits 1 | `go mod tidy` |
+| R5 | non-blocking | stale-xref | fixed inline | spec §1 still says the Go version must keep the Python behaviour and output and that the script is the tiebreaker, contradicting decision 1 and the narrowed §11 | `development/spec.md:8-10` | Narrow §1 to archive compatibility, the spec as tiebreaker |
+| R6 | non-blocking | stale-xref | fixed inline | Test renamed to `TestResolveversion` by the `Version`→`version` replace | `cmd/copilot-sessions/main_test.go:5` | Rename back to `TestResolveVersion` |
+| R7 | non-blocking | design | fixed inline | `defer stop()` in `main` never runs: `main` ends in `os.Exit` after an explicit `stop()` | `cmd/copilot-sessions/main.go` | Drop the defer |
+| R8 | non-blocking | design | noted | C3's wrapped error repeats the path (`backup /x: stat /x: permission denied`) | CLI probe; wording is Task 5's `fmt.Errorf("backup %s: %w", source, err)` | Changing it is a visible-text change; leave |
+| R9 | non-blocking | design | noted | `session.ParseUint` is an exported generic helper in the domain package; `ParseStatuses` builds its own name list | `internal/session/session.go`, `internal/filter/filter.go` | Within Task 2 D1's latitude |
+| R10 | non-blocking | design | noted | `env.in` is cached on a reused `*Env`; a second `Execute` on the same Env with a swapped `Stdin` would read the old reader | `internal/cli/confirm.go` `readLine` | Production builds one Env per process; tests build one per run |
+| R11 | non-blocking | design | noted | `golang.org/x/term` added although `mattn/go-isatty` is already in the graph | `go.mod` | Locked by CS-013 decision 14 (user, 2026-11-09) |
+
+Disposition summary: 2 blocking (R1, R2) → rework; 9 non-blocking — 4 fixed inline (R4–R7, applied in the rework round), 5 noted (R3, R8–R11); 0 new tickets.
+
+cost: estimated L, actual L
+
+Also observed, outside the diff: pre-existing mojibake at `development/spec.md` §9 case 11 (`Ôćĺ`, on `main` before this branch); SIGTERM/SIGHUP still exit without cleanup (only `os.Interrupt` is in scope).
+
+Checklist:
+- [x] Reviewer independence (step 0): delegated — fresh general-purpose reviewer ran steps 1–4a with `hunt: angle 7 only`; orchestrator authored the branch. All 7 delegated findings re-verified by hand; 0 discarded (its F1 = R1, F2 = R3, F3 = R4, F4 = R8, F5 = R5, F6 = R6, F7 = R9).
+- [x] Stale-branch check (step 0a): `pickle doctor` warned (branch had the ticket in 3-in-development); rebased onto main, re-run clean.
+- [x] Implementation audit (step 2): Tasks 1–7 and decisions 1–15 met, except Task 6 (c)'s restore case partially met (R3). Acceptance steps 1–4 and 6 re-run green by the delegate and by the implementer; step 5 run by the implementer through a pty (`^C` at `Continue? [y/N]` → 130, `Aborted.`, no `tmp*`).
+- [x] Correctness hunt (step 3): host tool path — `/code-review high` on `main...feat/CS-013-go-1-27-idiomatic`, 8 findings, 0 discarded (R1, R2, R4, R6, R7, R9, R10, R11); angle 7 by the delegate, nothing found.
+- [x] Consistency audit (step 4): delegate searched the whole tree for stale names; R4, R5.
+- [x] Docs audit (step 4a): spec, README, CHANGELOG cover the visible changes; no docs build configured.
+- [x] Docs-readability (step 4b): skipped — optional; deferred to the re-review round.
+
+Verdict: rework (R1, R2).
 
 ## History
 
@@ -531,3 +562,4 @@ From the repo root on the feature branch:
 - 2026-11-09 — plan amended inline: pickup applicability gate F1 — acceptance step 3 gains a `contains '` grep so decision 15 (Describe %q) is probed; F2–F4 noted and closed (cli has no sort imports; notty/no-zero-default probes are regression guards only; C5 is a logic slip, not a panic)
 - 2026-11-09 — READY → IN DEVELOPMENT: picked up
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green
+- 2026-11-09 — IN REVIEW → REWORK: review 1: blocking R1, R2

@@ -20,11 +20,10 @@ Last updated: 2026-11-09
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-013 | Go 1.27 upgrade and idiomatic Go across the codebase | [] |
 
 ## REWORK
 
@@ -32,6 +31,7 @@ Last updated: 2026-11-09
 
 | id | title | open findings |
 |---|---|---|
+| CS-013 | Go 1.27 upgrade and idiomatic Go across the codebase | review 1: blocking R1, R2 |
 
 ## READY (impact order, per child)
 
