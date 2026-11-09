@@ -13,10 +13,11 @@ Last updated: 2026-11-09
 
 ## IN DEVELOPMENT
 
-### copilot-sessions (0/1)
+### copilot-sessions (1/1)
 
 | id | title | depends-on |
 |---|---|---|
+| CS-010 | Windows support: native process detection and open-file-safe clean/restore | [CS-008, CS-009, CS-013] |
 
 ## IN REVIEW
 
@@ -38,7 +39,6 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
-| CS-010 | Windows support: native process detection and open-file-safe clean/restore | low | medium | M | [CS-008, CS-009, CS-013] |  |
 
 ## TO DO (impact order, per child)
 

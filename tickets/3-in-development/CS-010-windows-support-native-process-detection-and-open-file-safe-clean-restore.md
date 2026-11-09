@@ -128,15 +128,16 @@ print nothing. Merging is the human's.
    `windows.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, …)` and then
    `windows.NtQueryInformationProcess(h, ProcessCommandLineInformation, …)`. Both, plus the
    constant, are in `x/sys/windows` v0.49.0 (checked 2026-11-08). Query the size first, then
-   read the `NTUnicodeString` at the start of the buffer. `ExeFile` alone is not enough
-   (`node.exe`). Any error, such as access denied or the process having exited, reads as
+   read the `NTUnicodeString` at the start of the buffer. Matching on the command line keeps
+   Windows consistent with linux (cmdline) and darwin (procargs2 argv), and covers both a
+   native `copilot.exe` and a `node.exe …copilot…` launch. Any error, such as access denied or the process having exited, reads as
    `false`.
 4. **`restore` gets no new guard.** `swapItems` (`internal/cli/restore.go:113`) already undoes
    every move when a rename fails. A file Windows holds open therefore aborts the restore and
    leaves `COPILOT_HOME` as it was. Acceptance proves this on Windows; no code changes.
 5. **`clean` is unchanged, and its Windows caveat is documented.** Ongoing sessions are
    skipped by default. With `--include-ongoing`, Windows may refuse to delete open files.
-   `os.RemoveAll` errors are ignored (`deleteSessions`, `internal/session/delete.go:38`), so a partial directory
+   `os.RemoveAll` errors are ignored (`deleteSessions`, `internal/session/delete.go:37`), so a partial directory
    can remain. The README says so; there is no code change.
 6. **Safe extraction is unchanged, and Windows test cases are added.** `filepath.IsLocal`
    (`internal/backup/restore.go:61`) already rejects drive letters, `..\`, and reserved names
@@ -174,10 +175,16 @@ widened.
 Guard the mode-bit dependencies found at refinement (2026-11-09):
 `internal/cli/cancel_test.go` `TestPermissionErrors` (`chmod 0`, whole test);
 `internal/session/session_test.go` `TestLoadEdgePaths` (the `chmod 0` block at ~294 only);
-`internal/backup/backup_test.go` `TestCreate` (mode assertions at ~87 and ~119),
-`TestCreateFailureLeavesNothing` (whole test), `TestListErrors` (the locked-dir part at ~251);
+`internal/backup/backup_test.go` `TestCreate` (the archive mode assertion at ~87; ~119 matches on Windows too),
+`TestCreateFailureLeavesNothing` (whole test), `TestListErrors` (extend its `os.Geteuid() == 0` skip with `|| runtime.GOOS == "windows"`);
 `internal/cli/clean_test.go` `TestCleanDelete` (the sidebar mode assertion at ~187);
-`internal/backup/restore_test.go` `TestExtractModesAndLinks` (the mode check at ~44).
+`internal/backup/restore_test.go` `TestExtractModesAndLinks` (the file mode check at :45 inside the loop at :39).
+
+#### Task 2c: `--cwd` on Windows (applicability gate G1/G2)
+`internal/filter/filter.go` `under`: run `filepath.Abs` on `path` too and compare against
+`root + string(filepath.Separator)` instead of `"/"`, so a drive-lettered root still contains
+its paths. `internal/cli/cancel_test.go` `TestCwdTilde`: also set `USERPROFILE`. `TestApply`
+runs on Windows with no skip.
 Then let the `test-windows` CI run judge. Any further failure that is purely a mode-bit
 assumption gets the same guard. **Any other failure is a real Windows bug: stop and report it,
 and don't skip it.**
@@ -185,14 +192,16 @@ and don't skip it.**
 #### Task 3: Windows tests
 - `internal/session/session_windows_test.go`: `ancestorsFrom(os.Getpid())` contains its own
   PID and reaches at least one parent. `pidIsCopilot(fx.OngoingPID)` is true and
-  `pidIsCopilot(os.Getpid())` is false.
+  `pidIsCopilot(os.Getpid())` equals whether `os.Args` mentions `copilot` (as
+  `session_darwin_test.go` does).
 - `internal/backup/restore_windows_test.go`: `Extract` rejects archive entries named
   `C:/x`, `C:x`, `..\\x`, `CON`, `nul.txt` and `s/AUX` with "unsafe path".
-- `internal/cli/restore_windows_test.go`: open a file inside a current session with
-  `os.Open` (Windows refuses the rename without share-delete). Then
+- `internal/cli/restore_windows_test.go`: hold `sidebar-sessions-state/a.json` open with
+  `os.Open` (the last item `swapItems` moves, so earlier moves really roll back) (Windows refuses the rename without share-delete). Then
   `restore(t.Context(), env, []string{"latest"}, true, os.Rename)` must fail, and afterwards
-  `COPILOT_HOME`'s tree must be byte-identical to before (decision 4). Reuse `snapshot(t, fx)`
-  from `restore_test.go` rather than writing a new tree comparison.
+  `COPILOT_HOME`'s tree must be byte-identical to before (decision 4). Compare `tree(t, fx.Home)`
+  (`restore_test.go`) before and after rather than writing a new tree comparison.
+  Also a backslash symlink-loop row in the `Extract` table (G10).
 
 #### Task 4: release and CI
 `.goreleaser.yaml`: `goos: [darwin, linux, windows]`, plus
@@ -224,6 +233,9 @@ tab completion.
 - `README.md`: Windows install (zip from Releases, put `copilot-sessions.exe` on `PATH`),
   `completion powershell` (line 36 becomes `bash|zsh|fish|powershell`; add it to `$PROFILE`), the WSL boundary (decision 8), and the
   `--include-ongoing` caveat (decision 5).
+- Prose this ticket makes false: `README.md:14-15` ("Windows is not supported yet"),
+  `development/spec.md:94`, `:103-104`, `:631`, `RELEASING.md:4-5`, and the "(Linux and
+  macOS)" comments in `internal/testfix/testfix.go`.
 - `development/spec.md:14` and `AGENTS.md` *Platform*: add Windows (Toolhelp32 +
   `NtQueryInformationProcess`) and note that live-process tests also run on Windows CI.
 - `CHANGELOG.md` `[Unreleased]` → `### Added` (created by CS-009 if unreleased): "Windows support: native process detection,
@@ -254,3 +266,6 @@ tab completion.
 - 2026-11-09 — re-refined after CS-013 (stays READY): line refs and restore test seam updated to the post-CS-013 tree; added decision 10 + task 2b (Unix-permission tests skip on Windows); approach otherwise unchanged
 - 2026-11-09 — note (CS-009 applicability gate F7): Copilot CLI 1.0.x runs as a native per-platform binary (`@github/copilot-win32-<arch>/copilot.exe`), not `node.exe`. Re-check decision 3's rationale at pickup; `ExeFile` may suffice, but argv fails safe (see CS-009 F1).
 - 2026-11-09 — impact sweep (CS-009 review): `testfix.startCopilotHelper` now symlinks `sleep` (macOS killed a copy on code-signature mismatch). Task 2's Windows branch should keep copying `PING.EXE`, because Windows symlinks need privilege. `session_other.go` is now `//go:build !linux && !darwin`, so decision 1 narrows it to `&& !windows`. `argvHasCopilot`/`procargsArgv` are darwin-only and not reused.
+- 2026-11-09 — note: prerequisite gate 2 (native-Windows environment check) waived by the user; no Windows machine available and Docker on the arm64 Mac can't run Windows (no Windows containers, no /dev/kvm). Assumes `%USERPROFILE%\.copilot` and `inuse.<pid>.lock`; the manual acceptance check on real Windows carries that risk.
+- 2026-11-09 — plan amended inline: applicability gate (fresh sub-agent) found 12 non-blocking findings. Fixed inline: G1/G2 new task 2c (`filter.under` separator/drive bug, `TestCwdTilde` USERPROFILE); G3/G5 restore test uses `tree()` and holds the last-moved item open; G4 self-PID assertion mirrors darwin; G6 drop the ~119 guard; G7 decision 3 rationale rewritten (argv consistency, native copilot.exe); G8 more stale docs listed. Noted: G9 symlink targets not ToSlash'd on Windows backups; G10 backslash symlink-loop row added to the Extract test; G11 waiver consequences (lock layout, share-delete on open-sessions-state.json, access-denied reads as stale) left to the manual check; G12 restore completion with `\` paths is cosmetic.
+- 2026-11-09 — READY → IN DEVELOPMENT: picked up
