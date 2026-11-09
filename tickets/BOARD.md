@@ -46,6 +46,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-014 | macOS: match copilot case-insensitively in process detection | medium | low | S | [] |  |
 
 ## DONE
 

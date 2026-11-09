@@ -291,6 +291,21 @@ cost: estimated M, actual M
 - F3: on Windows, `under` compares path, root and prefix lower-cased. Regression test `filter_windows_test.go` `TestUnderWindowsCase` (passes under Wine).
 - Re-run: `just lint`, `just test`, `just test-linux`, windows amd64 vet and arm64 build all green.
 
+### Scoped re-review — round 1 (2026-11-09)
+
+- [x] 0 delegated: independent sub-agent, `hunt: one pass` over 9bd440d. 0a `pickle doctor` clean.
+- [x] F1, F2 and F3 are closed. `TestUnderRelative` fails on the pre-fix tree (223e4c8) and passes on the fix. Lint, test, test-linux and the Windows vet and build are green.
+- [ ] Windows acceptance is still pending: `test-windows` runs only after a push, and the manual native-Windows check is waived.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| N1 | non-blocking | correctness | new ticket (CS-014) | The macOS `copilot` argv match is case-sensitive, so `COPILOT` typed in a shell reads as `stale` and is cleanable. This predates the branch (CS-009). | Reproduced: `zsh -c 'SLEEP 3 & ps -o args= -p $!'` prints `SLEEP 3`; `session_darwin.go:22` | One-line `bytes.ToLower` in CS-014. |
+| N2 | non-blocking | correctness | noted | On Windows, a rooted foreign cwd (`/home/me/proj` from WSL data) gets the current drive and can match `--cwd C:\home`. | unreproduced (needs Windows): `filter.go:229` → `Abs` | Only matters with `COPILOT_HOME` on WSL data. Revisit on a report. |
+| N3 | non-blocking | test-gap | fixed inline | The F2 fold had no test, because the helper's name was lower-case. | `internal/testfix/testfix.go` | The Windows helper is now `Copilot-Test\Copilot-Test.exe` (commit 75c78ad). |
+| N4 | non-blocking | stale-xref | fixed inline | The spec §4.2 match rule and the `--cwd` row didn't state the new behaviour. | `development/spec.md:96`, `:157` | Clauses added (commit 75c78ad). |
+
+Dispositions (round 1): 2 fixed inline (N3, N4), 1 noted (N2), 1 new ticket (N1 → CS-014). Verdict: no open blocking findings. Ticket stays in IN REVIEW until the CI `test-windows` job is green on the pushed branch, then moves to DONE.
+
 ## History
 
 - 2026-11-08 — created (TO DO). source: review: CS-008 platform exploration; Windows split from CS-009 at user request
