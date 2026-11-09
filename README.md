@@ -92,8 +92,9 @@ terminal).
 
 ### apt (Debian, Ubuntu, WSL2)
 
-Packages are hosted on
-[Cloudsmith](https://cloudsmith.io/~codcod/repos/copilot-sessions/).
+Packages for `amd64` and `arm64` are hosted on
+[Cloudsmith](https://cloudsmith.io/~codcod/repos/copilot-sessions/). They include bash,
+zsh and fish completions.
 
 With the setup script, which adds the signing key and the apt source for you:
 

@@ -22,5 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release builds: a tag-driven GitHub release with Linux `amd64`/`arm64` tarballs and
   `checksums.txt`, `go install …@vX.Y.Z` reporting its module version, and CI on every push and
   PR (CS-008).
+- `.deb` packages for `amd64` and `arm64`, with shell completions, attached to each release
+  and published to the Cloudsmith apt repository `codcod/copilot-sessions` (CS-011).
 
 [Unreleased]: https://github.com/codcod/copilot-sessions/commits/main

@@ -1,7 +1,7 @@
 name: release
 
 # Cut a release by pushing a semver tag: `git tag v0.1.0 && git push origin v0.1.0`.
-# See RELEASING.md.
+# See RELEASING.md (incl. the CLOUDSMITH_API_KEY secret for the .deb push).
 on:
   push:
     tags:
@@ -39,3 +39,46 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Push the goreleaser-built .deb files to the Cloudsmith apt repository
+      # (CS-011). Runs last and never fails the release: a missing
+      # CLOUDSMITH_API_KEY, a prerelease tag, no .deb, or a failed CLI install
+      # each exit 0 with a warning and a job-summary line. Every package is
+      # tried, and --republish replaces a version that is already there. A tag
+      # that missed this step is re-pushed by hand; see RELEASING.md.
+      - name: Publish .deb to Cloudsmith
+        continue-on-error: true
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          CLOUDSMITH_REPO: codcod/copilot-sessions
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          shopt -s nullglob
+          skip() {
+            echo "::warning::No .deb published to Cloudsmith for $TAG: $1"
+            {
+              echo "### ⚠️ No .deb published to Cloudsmith for $TAG"
+              echo "$1 (soft-fail: this does not block the release)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+          [ -n "$CLOUDSMITH_API_KEY" ] || skip "CLOUDSMITH_API_KEY is not set"
+          # One any-distro/any-version channel: a prerelease pushed there would
+          # reach every apt upgrade, so only final releases go out.
+          case "$TAG" in *-*) skip "$TAG is a prerelease" ;; esac
+          debs=(dist/*.deb)
+          [ ${#debs[@]} -gt 0 ] || skip "goreleaser produced no dist/*.deb"
+          pipx install cloudsmith-cli==1.30.0 || skip "installing cloudsmith-cli failed"
+          failed=()
+          for f in "${debs[@]}"; do
+            cloudsmith push deb "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish \
+              || failed+=("$(basename "$f")")
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::warning::Cloudsmith publish incomplete for $TAG: failed to push ${failed[*]};" \
+              "see this step's log."
+            {
+              echo "### ⚠️ Cloudsmith publish incomplete for $TAG"
+              echo "Failed to push ${failed[*]}; the rest, if any, were pushed (soft-fail: this"
+              echo "does not block the release). Re-push by hand, see RELEASING.md."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

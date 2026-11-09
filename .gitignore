@@ -2,6 +2,7 @@
 *.test
 *.out
 /dist/
+/completions/
 
 # Rendered docs (never commit generated artifacts)
 *.pdf
