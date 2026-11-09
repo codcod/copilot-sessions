@@ -297,11 +297,32 @@ Verdict: rework (R1).
 - [x] Consistency and docs audits: clean apart from R5.
 
 
-### Rework fix record — round 2 (commit a3f958e, `fix(cli): move writes NEW with symlinks resolved (CS-017)`; before it 311c453)
+### Rework fix record — round 2 (commit `fix(cli): move writes NEW with symlinks resolved (CS-017)`; recorded as a3f958e, 6469590 after the rebase onto main, see G3)
 
 - R1: `Repoint` is given `resolveSymlinks(newPath)`, so sessions get NEW as Copilot records it. `TestMoveSymlink` now moves through the link on both sides; it fails when the fix is reverted. cprobe: `move -y /work/rr2 /lnk/rr3` (`/lnk -> /work`) wrote `cwd: /work/rr3`, and the session resumed from `/lnk/rr3`.
 - Inline fixes: R4 (`TestMoveRecheckOngoing`; fails when the post-confirm ongoing check is removed), R5 (spec §6.6 step 5 clause and step 7 resolved NEW), R6 (round 1 record cites commit subjects), R7 (the `ponytail:` comment states the `\x` limit).
 - `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean.
+
+
+### Scoped re-review — round 3 (2026-11-09)
+
+This round read the round 2 fix commit, `fix(cli): move writes NEW with symlinks resolved (CS-017)` (6469590).
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| G1 | blocking | correctness | — | The R1 fix reopens F3. The control-character guard checks NEW as typed, but the resolved NEW is what gets written. A symlink whose target name contains a newline puts a raw newline into `workspace.yaml`, and the command exits 0. | Orchestrator repro (macOS, scratch `COPILOT_HOME`, HEAD binary): `lnk -> "a<LF>b"`; `move -y proj lnk/moved` printed `Repointed 1 session.`, and the YAML then read `cwd: …/g1b/a` with `b/moved` on the next line. | Refuse a control character in the resolved NEW too, before the rename (usage error), and cover it in a test. |
+| G2 | non-blocking | correctness | noted | On Windows, Node's `process.cwd()` keeps directory symlinks, so writing the resolved NEW may differ from what Copilot records. `list --cwd` still matches; picker ranking may not. Only real symlinks are affected (junctions are not resolved). | unreproduced: no Windows host. Traced: `resolveSymlinks` → `filepath.EvalSymlinks` → `Repoint`. | Skip resolving NEW on Windows if this shows up. |
+| G3 | non-blocking | stale-xref | fixed inline | The round 2 fix record cited `a3f958e`, which the rebase rewrote to `6469590`. | `git range-diff`: `1: a3f958e = 1: 6469590`. | The record now names the commit subject and both SHAs. |
+
+Disposition summary: 1 blocking (G1) → rework; 2 non-blocking: 1 fixed inline (G3), 1 noted (G2), 0 new tickets.
+
+Verdict: rework (G1). This was the second rework round of this invocation, so the session stops here.
+
+- [x] Reviewer independence (step 0): delegated scoped re-review, hunt one pass; G1 re-verified by the orchestrator, nothing discarded.
+- [x] Stale-branch check (step 0a): `pickle doctor` clean.
+- [x] Implementation audit: R1, R4, R5 and R7 met; `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean.
+- [x] Correctness hunt: one pass over 8 angles on the fix diff; G1 reproduced, G2 unreproduced (traced).
+- [x] Consistency and docs audits: clean apart from G2 and G3.
 
 ## History
 
@@ -315,3 +336,4 @@ Verdict: rework (R1).
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed (F1-F4)
 - 2026-11-09 — IN REVIEW → REWORK: re-review: 1 blocking (R1)
 - 2026-11-09 — REWORK → IN REVIEW: R1 fixed
+- 2026-11-09 — IN REVIEW → REWORK: re-review round 3: 1 blocking (G1); rework cap reached
