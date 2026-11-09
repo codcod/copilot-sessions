@@ -1,8 +1,8 @@
 # Releasing copilot-sessions
 
 Releases are built by [goreleaser](https://goreleaser.com) from a `vX.Y.Z` tag. Each release
-has two Linux tarballs, `copilot-sessions_X.Y.Z_linux_amd64.tar.gz` and
-`copilot-sessions_X.Y.Z_linux_arm64.tar.gz`, two Debian packages,
+has `copilot-sessions_X.Y.Z_<os>_<arch>.tar.gz` for `linux` and `darwin`,
+`copilot-sessions_X.Y.Z_windows_<arch>.zip` (`<arch>` is `amd64` or `arm64`), two Debian packages,
 `copilot-sessions_X.Y.Z_amd64.deb` and `copilot-sessions_X.Y.Z_arm64.deb`, plus
 `checksums.txt`. The packages are also pushed to the Cloudsmith apt repository
 `codcod/copilot-sessions` (see *Debian/Ubuntu packages* below), which needs one secret,

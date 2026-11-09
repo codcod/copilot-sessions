@@ -55,13 +55,15 @@ the file + one dated `## History` line, and the board regenerates. Prefer
 
 ## Platform
 
-Developed on macOS. The binary targets Linux (WSL) and macOS. Process detection is per OS:
-`internal/session/session_linux.go` reads `/proc`, `session_darwin.go` uses sysctl, and
+Developed on macOS. The binary targets Linux (WSL), macOS and Windows. Process detection is
+per OS: `internal/session/session_linux.go` reads `/proc`, `session_darwin.go` uses sysctl,
+`session_windows.go` uses a Toolhelp32 snapshot + `NtQueryInformationProcess`, and
 `session_other.go` is the no-op fallback. Consequences:
 
 - Live-process tests (`TestLoadOngoing`, `TestDefaultAncestors`, `TestCleanOngoing`) run on
-  Linux and macOS and skip elsewhere; everything else runs everywhere.
+  Linux, macOS and Windows and skip elsewhere; tests that rely on Unix permission bits skip on
+  Windows; everything else runs everywhere.
 - Validate the Linux path before a ticket leaves review: `just test-linux` runs the suite in
-  a Docker container from macOS (CI's `test-macos` job covers darwin). Checks against real
+  a Docker container from macOS (CI's `test-macos` and `test-windows` jobs cover darwin and windows). Checks against real
   Copilot data (the CS-005 cutover) still run on WSL.
-- Build for a target with `GOOS=linux|darwin GOARCH=amd64|arm64` (no CGO).
+- Build for a target with `GOOS=linux|darwin|windows GOARCH=amd64|arm64` (no CGO).

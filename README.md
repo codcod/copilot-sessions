@@ -4,15 +4,19 @@
 backs up and restores them.
 
 It reads the session directories, the `session-store.db` index and the
-UI state under `COPILOT_HOME` (default `~/.copilot`), and shows each session's
+UI state under `COPILOT_HOME` (default `~/.copilot`; on Windows `%USERPROFILE%\.copilot`), and shows each session's
 status:
 
 - `ongoing`: a live `copilot` process holds the session (busy or idle).
 - `stale`: the session has an in-use lock left by a process that has exited.
 - `closed`: the session is not in use.
 
-It runs on Linux (tested on WSL2) and macOS. Status detection reads `/proc` on Linux
-and uses `sysctl` on macOS. Windows is not supported yet.
+It runs on Linux (tested on WSL2), macOS and Windows. Status detection reads `/proc` on
+Linux, uses `sysctl` on macOS and the process snapshot API on Windows.
+
+A Windows binary can't see processes inside WSL, and a WSL binary can't see Windows
+processes. Sessions run on the other side therefore show as `stale`: run
+`copilot-sessions` on the same side as the Copilot CLI it manages.
 
 ## Usage
 
@@ -33,7 +37,8 @@ Backups go to `COPILOT_BACKUP_DIR` (default `~/.copilot-backups`). Run
 
 For scripts, `-q` prints only IDs or paths on stdout; prompts and notes go to stderr.
 
-Shell completion: `copilot-sessions completion bash|zsh|fish`.
+Shell completion: `copilot-sessions completion bash|zsh|fish|powershell`. In PowerShell,
+add `copilot-sessions completion powershell | Out-String | Invoke-Expression` to `$PROFILE`.
 
 ## Examples
 
@@ -88,7 +93,10 @@ copilot-sessions backup --keep 7 -y -q
 
 `clean` never deletes `ongoing` sessions unless you pass `--include-ongoing`. It
 asks for confirmation; `-y` skips the prompt (needed when stdin is not a
-terminal).
+terminal). On Windows, `--include-ongoing` may leave part of a session directory behind:
+Windows refuses to delete files a running Copilot holds open, and `clean` carries on.
+`restore` while Copilot runs either succeeds or fails and puts `COPILOT_HOME` back; if even
+putting it back fails, it says where it kept the old data.
 
 ## Install
 
@@ -137,6 +145,10 @@ tar xzf copilot-sessions_<version>_<os>_<arch>.tar.gz -C ~/.local/bin copilot-se
 
 The macOS binaries are not signed. If you downloaded the archive with a browser, remove the
 quarantine flag first: `xattr -d com.apple.quarantine ~/.local/bin/copilot-sessions`.
+
+On Windows, download `copilot-sessions_<version>_windows_<arch>.zip`, check it against
+`checksums.txt` (`Get-FileHash <zip>`), and put `copilot-sessions.exe` in a directory on
+your `PATH`.
 
 ### With Go
 
