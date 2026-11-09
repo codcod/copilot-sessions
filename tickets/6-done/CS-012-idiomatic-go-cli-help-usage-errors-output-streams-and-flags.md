@@ -317,3 +317,4 @@ Checklist:
 - 2026-11-09 — plan amended inline: decision 5 — `clean -q` prints its summary line to stderr before an interactive prompt (review 1 F1, user sign-off)
 - 2026-11-09 — REWORK → IN REVIEW: findings fixed (F1, F4, F7); branch feat/CS-012-idiomatic-cli @ 1667b53
 - 2026-11-09 — IN REVIEW → DONE: review 2 clean (0 blocking); branch feat/CS-012-idiomatic-cli @ c17feb7; publish pending user approval
+- 2026-11-09 — published: user approved; tidied to 3 commits (ec6c516, d764e71, 0b11580), pushed, PR #10 https://github.com/codcod/copilot-sessions/pull/10; merge pending (human)
