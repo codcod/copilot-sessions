@@ -109,3 +109,4 @@ cost: estimated S, actual S
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet; new row red without fix)
 - 2026-11-09 — IN REVIEW → DONE: review: no blocking findings; 1 noted (N1)
 - 2026-11-09 — published: pushed feat/CS-014-darwin-case-insensitive, opened PR #15 (awaiting human merge)
+- 2026-11-09 — merged to main (PR #15, 16da929, https://github.com/codcod/copilot-sessions/commit/16da929)

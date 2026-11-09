@@ -93,3 +93,4 @@ cost: estimated S, actual S
 - 2026-11-09 — IN DEVELOPMENT → IN REVIEW: acceptance green (lint, test, test-linux, GOOS=windows vet); CI test-windows pending push
 - 2026-11-09 — IN REVIEW → DONE: review: no blocking findings; 1 noted (F1)
 - 2026-11-09 — published: pushed feat/CS-015-windows-ci-tests, opened PR #14 (awaiting human merge)
+- 2026-11-09 — merged to main (PR #14, d6c78a5, https://github.com/codcod/copilot-sessions/commit/d6c78a5)
