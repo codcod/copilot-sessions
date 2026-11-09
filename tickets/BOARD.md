@@ -47,6 +47,7 @@ Last updated: 2026-11-09
 
 | id | title | impact | complexity | cost | depends-on | family |
 |---|---|---|---|---|---|---|
+| CS-012 | Idiomatic Go CLI: help, usage errors, output streams and flags | medium | medium | M | [] |  |
 
 ## DONE
 
