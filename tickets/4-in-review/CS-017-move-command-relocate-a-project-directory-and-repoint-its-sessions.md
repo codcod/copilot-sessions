@@ -324,10 +324,38 @@ Verdict: rework (G1). This was the second rework round of this invocation, so th
 - [x] Correctness hunt: one pass over 8 angles on the fix diff; G1 reproduced, G2 unreproduced (traced).
 - [x] Consistency and docs audits: clean apart from G2 and G3.
 
-### Rework fix record — round 3 (commit ab7284b, `fix(cli): move refuses a control character in the resolved NEW (CS-017)`; branch rebased onto main first, round 2 commit now d4005fb)
+### Rework fix record — round 3 (commit `fix(cli): move refuses a control character in the resolved NEW (CS-017)`; recorded as ab7284b, 00fe69e after the rebase onto main, see V3)
 
 - G1: `moveTarget` resolves NEW and refuses a control character in NEW as typed *or* as resolved (usage error, exit 2), before anything moves. It runs again after the confirm, because a symlink on NEW's path may change during the prompt, and its result is the value passed to `Repoint`. Test `TestMoveSymlinkControl` (`lnk -> "a<LF>b"`, `move -y proj lnk/moved` → exit 2, disk and snapshot unchanged); it fails when the resolved-path check is removed. Spec §6.6 step 1 says "as typed or with symlinks resolved".
 - `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean. cprobe re-check skipped: the container was not running; the macOS repro path is covered by the test.
+
+### Scoped re-review — round 4 (2026-11-11)
+
+This round read the round 3 fix commit 00fe69e.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| V1 | blocking | correctness | — | The G1 fix resolves NEW before `os.Rename`, while NEW does not exist yet. When OLD is a symlink, only the link moves, and sessions are rewritten through the new link name instead of the real folder Copilot records. Round 2 got this right because it resolved NEW after the rename. Spec §6.6 step 7 no longer holds. | Reviewer repro (macOS, scratch `COPILOT_HOME`): `link -> real`, session `cwd: <T>/real/app`; `move -y <T>/link <T>/link2` left the YAML at `<T>/real/app` with dfc62bf and changed it to `<T>/link2/app` with 00fe69e. Orchestrator: the new `TestMoveSymlinkOld` fails on 00fe69e. | Keep the pre-rename check; resolve NEW again after the rename and pass that value to `Repoint`. |
+| V2 | non-blocking | test-gap | fixed inline | The post-confirm `moveTarget` re-check had no test. | Reviewer mutation: deleting it left the suite green. | It was removed in the V1 fix: the post-rename check runs later and covers a symlink swapped during the prompt. |
+| V3 | non-blocking | stale-xref | fixed inline | The round 3 record cited `ab7284b`, which the rebase rewrote to `00fe69e`. | `git range-diff`: `ab7284b = 00fe69e`. | The record now names the commit subject and both SHAs. |
+
+The reviewer reported V1 as non-blocking and left the call to the orchestrator. The orchestrator classed it blocking: it is a regression of the path the ticket's Outcome depends on (picker ranking from the new folder).
+
+Disposition summary: 1 blocking (V1) → rework; 2 non-blocking, both fixed inline (V2, V3); 0 new tickets.
+
+Verdict: rework (V1).
+
+- [x] Reviewer independence (step 0): delegated scoped re-review, hunt one pass; V1 re-verified by the orchestrator, nothing discarded; severity of V1 raised by the orchestrator.
+- [x] Stale-branch check (step 0a): `pickle doctor` clean for CS-017 (warnings only for the AGENTS.md marker drift and the payload 1.4.3 vs 1.5.0 mismatch).
+- [x] Implementation audit: G1 met; `just lint`, `just test`, `just test-linux`, `GOOS=windows go vet` green; the reviewer also ran the cprobe real-data check (`/work/v4p` → `/work/v4q`).
+- [x] Correctness hunt: one pass over 8 angles on the fix diff; V1 reproduced, V2 shown by mutation.
+- [x] Consistency and docs audits: clean apart from spec §6.6 step 7 (V1).
+
+### Rework fix record — round 4 (commit 0e7205e, `fix(cli): move resolves NEW after the rename (CS-017)`)
+
+- V1: `runMove` checks `moveTarget(NEW)` before the rename (G1 guard, nothing moved on refusal) and resolves it again after the rename. That value goes to `Repoint`, so when OLD is a symlink, NEW resolves to the real folder. A control character found at that point is reported as `repointed no sessions: …`. Test `TestMoveSymlinkOld` (`link -> proj`, `move -y link link2` leaves the YAML byte-identical); it fails on 00fe69e. Spec §6.6 step 7 now says NEW is resolved after the rename.
+- V2: the post-confirm re-check is removed, because the post-rename check supersedes it.
+- `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean.
 
 ## History
 
@@ -343,3 +371,5 @@ Verdict: rework (G1). This was the second rework round of this invocation, so th
 - 2026-11-09 — REWORK → IN REVIEW: R1 fixed
 - 2026-11-09 — IN REVIEW → REWORK: re-review round 3: 1 blocking (G1); rework cap reached
 - 2026-11-11 — REWORK → IN REVIEW: findings fixed (G1)
+- 2026-11-11 — IN REVIEW → REWORK: re-review round 4: 1 blocking (V1)
+- 2026-11-11 — REWORK → IN REVIEW: V1 fixed
