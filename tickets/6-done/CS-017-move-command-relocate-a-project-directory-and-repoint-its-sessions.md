@@ -426,3 +426,4 @@ Verdict: done.
 - 2026-11-11 — IN REVIEW → REWORK: re-review round 5: 1 blocking (P1); rework cap reached
 - 2026-11-11 — REWORK → IN REVIEW: findings fixed (P1)
 - 2026-11-11 — IN REVIEW → DONE: re-review round 6: 0 blocking; S1, S2 fixed inline; 0 new tickets
+- 2026-11-11 — merged to main (PR #17, 30c42d9, https://github.com/codcod/copilot-sessions/commit/30c42d9)
