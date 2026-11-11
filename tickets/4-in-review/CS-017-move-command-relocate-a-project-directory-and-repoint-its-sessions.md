@@ -324,6 +324,11 @@ Verdict: rework (G1). This was the second rework round of this invocation, so th
 - [x] Correctness hunt: one pass over 8 angles on the fix diff; G1 reproduced, G2 unreproduced (traced).
 - [x] Consistency and docs audits: clean apart from G2 and G3.
 
+### Rework fix record — round 3 (commit ab7284b, `fix(cli): move refuses a control character in the resolved NEW (CS-017)`; branch rebased onto main first, round 2 commit now d4005fb)
+
+- G1: `moveTarget` resolves NEW and refuses a control character in NEW as typed *or* as resolved (usage error, exit 2), before anything moves. It runs again after the confirm, because a symlink on NEW's path may change during the prompt, and its result is the value passed to `Repoint`. Test `TestMoveSymlinkControl` (`lnk -> "a<LF>b"`, `move -y proj lnk/moved` → exit 2, disk and snapshot unchanged); it fails when the resolved-path check is removed. Spec §6.6 step 1 says "as typed or with symlinks resolved".
+- `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean. cprobe re-check skipped: the container was not running; the macOS repro path is covered by the test.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: user asked for a way to move a project folder Copilot was used in; findings from a Copilot CLI 1.0.108 probe in Docker
@@ -337,3 +342,4 @@ Verdict: rework (G1). This was the second rework round of this invocation, so th
 - 2026-11-09 — IN REVIEW → REWORK: re-review: 1 blocking (R1)
 - 2026-11-09 — REWORK → IN REVIEW: R1 fixed
 - 2026-11-09 — IN REVIEW → REWORK: re-review round 3: 1 blocking (G1); rework cap reached
+- 2026-11-11 — REWORK → IN REVIEW: findings fixed (G1)
