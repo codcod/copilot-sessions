@@ -107,7 +107,7 @@ Copilot home: %s (COPILOT_HOME). Backups: %s (COPILOT_BACKUP_DIR).`, description
 	root.SetOut(env.Stdout)
 	root.SetErr(env.Stderr)
 	root.SetArgs(args)
-	root.AddCommand(newList(env), newClean(env), newBackup(env), newRestore(env), &cobra.Command{
+	root.AddCommand(newList(env), newClean(env), newBackup(env), newRestore(env), newMove(env), &cobra.Command{
 		Use:   "version",
 		Short: "Print the version",
 		Args:  cobra.NoArgs,
