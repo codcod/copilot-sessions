@@ -25,12 +25,14 @@ copilot-sessions list                 # all sessions with their status
 copilot-sessions clean -n <filters>   # dry run: show what would be deleted
 copilot-sessions backup               # archive sessions to ~/.copilot-backups
 copilot-sessions restore latest       # replace current sessions with the newest backup
+copilot-sessions move OLD NEW         # move a project folder and repoint its sessions
 ```
 
 - `list` shows sessions and their status. It takes filters, `--json` and `-q`.
 - `clean` deletes sessions by ID or filter. `-n` does a dry run.
 - `backup` creates backups, lists them (`--list`) and rotates them (`--keep N`).
 - `restore` replaces the current sessions with a backup file or `latest`.
+- `move` moves a project folder and repoints the sessions started in it. `-n` does a dry run.
 
 Backups go to `COPILOT_BACKUP_DIR` (default `~/.copilot-backups`). Run
 `copilot-sessions <command> --help` for the filters and flags.
@@ -74,6 +76,23 @@ Sessions that were opened and closed without a single prompt:
 copilot-sessions clean -n --empty   # preview
 copilot-sessions clean --empty
 ```
+
+### Move a project folder
+
+Copilot records each session's folder and never updates it. After a plain `mv`, the
+`--resume` picker shows the old location and stops ranking the session first in the new folder.
+`move` moves the folder and repoints its sessions, including those started in subfolders:
+
+```bash
+copilot-sessions move -n ~/src/app ~/work/app   # preview
+copilot-sessions backup && copilot-sessions move ~/src/app ~/work/app
+```
+
+Already moved the folder by hand? Run the same command: when only the new folder exists,
+`move` just repoints the sessions. It refuses while a session in the folder is `ongoing`,
+when the new folder already exists, when the old one is itself a symlink, and across
+filesystems. Session history and Copilot's
+trusted folders keep the old path, so Copilot asks to trust the new folder again.
 
 ### More
 

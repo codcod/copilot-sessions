@@ -198,12 +198,12 @@ func TestHelp(t *testing.T) {
 	if bare, errOut, code := run(fx, nil); code != 0 || errOut != "" || bare != out {
 		t.Errorf("bare: exit %d %q\n%s", code, errOut, bare)
 	}
-	for _, short := range []string{"List sessions with their status", "Delete sessions", "Create, list or rotate backups", "Replace current sessions with a backup"} {
+	for _, short := range []string{"List sessions with their status", "Delete sessions", "Create, list or rotate backups", "Replace current sessions with a backup", "Move a project folder and repoint its sessions"} {
 		if !strings.Contains(out, short+"\n") {
 			t.Errorf("help lacks Short %q", short)
 		}
 	}
-	for _, c := range []string{"list", "clean", "backup", "restore"} {
+	for _, c := range []string{"list", "clean", "backup", "restore", "move"} {
 		if h, _, _ := run(fx, nil, c, "--help"); !strings.Contains(h, "\nExamples:\n  copilot-sessions "+c) {
 			t.Errorf("%s --help lacks examples", c)
 		}

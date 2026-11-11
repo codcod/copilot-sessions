@@ -51,6 +51,8 @@ var ErrNoDB = errors.New("no " + DBFile)
 // Session is one Copilot session, from its directory, the DB or both.
 type Session struct {
 	ID, Name, Cwd string
+	GitRoot       string    // workspace.yaml git_root; "" when unknown
+	DBCwd         string    // sessions.cwd, even when the YAML cwd wins in Cwd
 	Updated       time.Time // zero when unknown (DB-only sessions only)
 	Dir           string    // "" for DB-only sessions
 	Status        Status
@@ -82,7 +84,7 @@ func Load(ctx context.Context, home string, ancestors map[int]bool) ([]Session, 
 		}
 		id := filepath.Base(dir)
 		index[id] = len(out)
-		out = append(out, Session{ID: id, Name: meta["name"], Cwd: meta["cwd"], Updated: updated, Dir: dir})
+		out = append(out, Session{ID: id, Name: meta["name"], Cwd: yamlPath(meta["cwd"]), GitRoot: yamlPath(meta["git_root"]), Updated: updated, Dir: dir})
 	}
 
 	rows, err := dbSessions(ctx, home)
@@ -97,6 +99,7 @@ func Load(ctx context.Context, home string, ancestors map[int]bool) ([]Session, 
 			out = append(out, Session{ID: r.id})
 		}
 		s := &out[i]
+		s.DBCwd = r.cwd
 		if s.Updated.IsZero() {
 			var ok bool
 			if s.Updated, ok = ParseTime(r.updated); !ok {
@@ -174,6 +177,15 @@ func Dirs(home string) ([]string, error) {
 		}
 	}
 	return dirs, nil
+}
+
+// yamlPath unquotes a quoted workspace.yaml path, which Copilot writes for one that contains
+// ": " (CS-017 review F2); a value it cannot unquote is kept as written.
+func yamlPath(v string) string {
+	if p, _, err := unquoteYAML(v); err == nil {
+		return p
+	}
+	return v
 }
 
 // readWorkspace parses workspace.yaml line by line, without a YAML library (spec §4.1).

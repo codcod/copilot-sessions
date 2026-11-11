@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - macOS support: correct `ongoing`/`stale` status and darwin release archives (CS-009).
 - Windows support: native process detection, PowerShell completion and windows zip archives (CS-010).
+- `move OLD NEW` (alias `mv`) moves a project folder and repoints its sessions, so Copilot's
+  `--resume` picker and `list --cwd` find them at the new path (CS-017).
 
 ### Changed
 

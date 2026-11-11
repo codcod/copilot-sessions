@@ -52,6 +52,13 @@ func registerCompletions(root *cobra.Command, env *Env) {
 			_ = cmd.RegisterFlagCompletionFunc("keep", noFile)
 		case "restore":
 			cmd.ValidArgsFunction = completeRestore(env)
+		case "move":
+			cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+				if len(args) >= 2 {
+					return nil, cobra.ShellCompDirectiveNoFileComp
+				}
+				return nil, cobra.ShellCompDirectiveFilterDirs
+			}
 		}
 	}
 }

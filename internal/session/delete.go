@@ -177,6 +177,19 @@ func readJSONFile(path string) (map[string]json.RawMessage, error) {
 // writeJSONFile writes v with 2-space indent and a trailing newline, atomically, keeping
 // the existing file's permissions.
 func writeJSONFile(path string, v any) error {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return err
+	}
+	return writeFileAtomic(path, buf.Bytes())
+}
+
+// writeFileAtomic replaces the existing file at path with data through a temp file in the
+// same directory, keeping the file's permissions.
+func writeFileAtomic(path string, data []byte) error {
 	fi, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -186,10 +199,7 @@ func writeJSONFile(path string, v any) error {
 		return err
 	}
 	defer os.Remove(tmp.Name())
-	enc := json.NewEncoder(tmp)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	err = enc.Encode(v)
+	_, err = tmp.Write(data)
 	if cerr := tmp.Close(); err == nil {
 		err = cerr
 	}
