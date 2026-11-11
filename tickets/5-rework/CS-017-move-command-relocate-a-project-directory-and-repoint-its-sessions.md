@@ -351,11 +351,32 @@ Verdict: rework (V1).
 - [x] Correctness hunt: one pass over 8 angles on the fix diff; V1 reproduced, V2 shown by mutation.
 - [x] Consistency and docs audits: clean apart from spec §6.6 step 7 (V1).
 
-### Rework fix record — round 4 (commit 0e7205e, `fix(cli): move resolves NEW after the rename (CS-017)`)
+### Rework fix record — round 4 (commit `fix(cli): move resolves NEW after the rename (CS-017)`; recorded as 0e7205e, d16a6c3 after the rebase onto main)
 
 - V1: `runMove` checks `moveTarget(NEW)` before the rename (G1 guard, nothing moved on refusal) and resolves it again after the rename. That value goes to `Repoint`, so when OLD is a symlink, NEW resolves to the real folder. A control character found at that point is reported as `repointed no sessions: …`. Test `TestMoveSymlinkOld` (`link -> proj`, `move -y link link2` leaves the YAML byte-identical); it fails on 00fe69e. Spec §6.6 step 7 now says NEW is resolved after the rename.
 - V2: the post-confirm re-check is removed, because the post-rename check supersedes it.
 - `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean.
+
+### Scoped re-review — round 5 (2026-11-11)
+
+This round read the round 4 fix commit d16a6c3.
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| P1 | blocking | correctness | — | When OLD is a **relative** symlink and NEW is in another directory, the moved link dangles. Resolving NEW after the rename falls back to NEW as typed, so sessions in the real folder, which never moved, are rewritten to a path that does not exist, and the command exits 0. This is R2 in a case where R2's reason for noting it ("the paths still resolve") no longer holds. It predates round 4 (00fe69e and dfc62bf behave the same). | Reviewer repro (HEAD binary, scratch `COPILOT_HOME`): `t/link -> proj` (relative); `move -y t/link t/other/link2` → `Repointed 1 session.`, exit 0, YAML `cwd: …/other/link2/app`, which does not exist. Orchestrator re-verified with a throwaway test on the fixture: exit 0, `Repointed 3 sessions.`, `cwd`/`git_root` → `…/other/link2`. | Refuse an OLD that is a symlink (`Lstat`) as a usage error before anything moves (R2's suggestion). This also closes P2 and P3, and makes the post-rename resolve unnecessary. |
+| P2 | non-blocking | correctness | noted | A post-rename `moveTarget` failure exits 2 (usage error wrapped with `%w`, matched by `errors.As`) after the folder has moved, and a rerun is refused by the pre-rename check, so decision 9 does not hold on this path. It also fails when no session needed repointing. | Reviewer repro: `t/link -> "a<LF>b"`, no sessions; `move -y t/link t/link2` printed `Moved …`, then error, exit 2; the rerun was refused, exit 2. `internal/cli/move.go:132-135`. | Closed by P1's fix. Otherwise, use a plain error (exit 1) and skip the check when nothing is selected. |
+| P3 | non-blocking | test-gap | noted | The post-rename refusal branch has no test. | Reviewer read: deleting `move.go:132-135` leaves the suite green. | Becomes moot under P1's fix. |
+| P4 | non-blocking | spec-unclear | noted | Spec §6.6 steps 1, 7 and 8 do not hold for P1/P2 (step 7's "NEW resolves to the real folder"; step 8's "a rerun finishes the job"). | `development/spec.md` §6.6. | Rewrite these steps with P1's fix. |
+
+Disposition summary: 1 blocking (P1) → rework; 3 non-blocking, noted (P2–P4) because P1's fix is expected to close them; 0 new tickets. The round 4 record's SHA was also corrected inline.
+
+Verdict: rework (P1). This was the second rework round of this invocation, so the session stops here.
+
+- [x] Reviewer independence (step 0): delegated scoped re-review, hunt one pass; P1 re-verified by the orchestrator, nothing discarded.
+- [x] Stale-branch check (step 0a): `pickle doctor` clean for CS-017.
+- [x] Implementation audit: V1 met for absolute symlinks only (P1); V2 as recorded; `just lint`, `just test`, `just test-linux`, `GOOS=windows go vet` green; cprobe check skipped (container not running).
+- [x] Correctness hunt: one pass over 8 angles on the fix diff; P1 and P2 reproduced.
+- [x] Consistency and docs audits: spec §6.6 mismatches recorded as P4.
 
 ## History
 
@@ -373,3 +394,4 @@ Verdict: rework (V1).
 - 2026-11-11 — REWORK → IN REVIEW: findings fixed (G1)
 - 2026-11-11 — IN REVIEW → REWORK: re-review round 4: 1 blocking (V1)
 - 2026-11-11 — REWORK → IN REVIEW: V1 fixed
+- 2026-11-11 — IN REVIEW → REWORK: re-review round 5: 1 blocking (P1); rework cap reached
