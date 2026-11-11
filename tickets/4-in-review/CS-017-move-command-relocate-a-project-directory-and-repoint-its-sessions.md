@@ -378,6 +378,14 @@ Verdict: rework (P1). This was the second rework round of this invocation, so th
 - [x] Correctness hunt: one pass over 8 angles on the fix diff; P1 and P2 reproduced.
 - [x] Consistency and docs audits: spec §6.6 mismatches recorded as P4.
 
+### Rework fix record — round 5 (commit `fix(cli): move refuses an OLD that is a symlink (CS-017)`, 78b0ff5 as recorded; the in-tree rebase onto main may rewrite the SHA, the subject stays)
+
+- P1: an OLD that is itself a symlink (`os.Lstat`) is a usage error (exit 2) before anything moves, as R2 suggested. NEW is resolved once, before the rename (its parent, since NEW does not exist yet), and that value goes to `Repoint`. `TestMoveSymlinkOld` now uses a relative link moved into another directory (the P1 repro) and expects exit 2 with disk and snapshot unchanged; it fails when the guard is disabled. An OLD reached through a symlinked parent (F1) is unaffected (`TestMoveSymlink` green).
+- P2, P3: closed. The post-rename resolve and its `repointed no sessions:` branch are removed, so no error remains after the folder has moved except per-session `failed:` (decision 9).
+- P4: spec §6.6 step 1 adds the symlinked-OLD refusal, and step 7 drops the "resolved after the rename" clause. Step 8 holds again.
+- R2 (noted in round 2) is closed by the same refusal.
+- `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean. cprobe re-check skipped: the container was not running.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: user asked for a way to move a project folder Copilot was used in; findings from a Copilot CLI 1.0.108 probe in Docker
@@ -395,3 +403,4 @@ Verdict: rework (P1). This was the second rework round of this invocation, so th
 - 2026-11-11 — IN REVIEW → REWORK: re-review round 4: 1 blocking (V1)
 - 2026-11-11 — REWORK → IN REVIEW: V1 fixed
 - 2026-11-11 — IN REVIEW → REWORK: re-review round 5: 1 blocking (P1); rework cap reached
+- 2026-11-11 — REWORK → IN REVIEW: findings fixed (P1)
