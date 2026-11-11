@@ -79,6 +79,7 @@ Session fields:
 | `id` | directory name |
 | `name` | `name`, else DB `sessions.summary`, else `""` |
 | `cwd` | `cwd`, else DB `sessions.cwd`, else `""` |
+| `git_root` | `git_root` (the repository root; differs from `cwd` in a subdirectory), else `""` |
 | `updated` | `updated_at`, else `created_at`, else directory mtime |
 | `dir` | directory path; nil for DB-only sessions |
 
@@ -476,6 +477,57 @@ Restore steps:
 `<n> <word>` gets an `s` unless n == 1: `1 session`, `2 sessions`,
 `1 old backup`.
 
+### 6.6 `move` (alias `mv`)
+
+`copilot-sessions move OLD NEW` moves the folder OLD to NEW, then repoints the
+sessions started in or below it (CS-017). Copilot never updates a session's
+recorded folder itself: after a plain `mv`, its `--resume` picker shows the old
+Location and drops the session's ranking for the new folder.
+
+| Flag | Meaning |
+|------|---------|
+| `-n, --dry-run` | show the sessions to repoint; move nothing |
+| `-y, --yes` | skip confirmation |
+
+1. Expand `~` and make both paths absolute. NEW equal to OLD or inside it, or
+   NEW containing a control character, as typed or with symlinks resolved, is a
+   usage error (exit 2), and so is an OLD that is itself a symlink: renaming it
+   would move only the link, which may then dangle.
+2. OLD and NEW both exist: `<NEW> already exists`. Neither exists: `<OLD> does
+   not exist`. Only NEW exists means the folder was moved by hand, so the
+   folder move is skipped and only sessions are repointed.
+3. Select every session whose `cwd`, `git_root` or DB `sessions.cwd` is under
+   OLD (the `--cwd` rule from 5.2), or under OLD with symlinks resolved: Copilot
+   records the resolved cwd. Quoted YAML values (`cwd: '/a: b'`) are unquoted
+   first. Print the session table and
+   `<N> session(s) to repoint (cwd under <OLD>)`, or `No sessions to repoint.`
+   (the folder still moves).
+4. If any selected session is `ongoing` (or is the current session), fail with
+   `<N> ongoing session(s) under <OLD>; close them first` and change nothing.
+5. `-n` stops here (`Dry run: nothing moved.` on stderr). Otherwise confirm, then
+   repeat steps 2 to 4, the symlinked-OLD check and NEW's resolution: a Copilot
+   started in OLD, a NEW created, or a symlink on either path changed while the
+   prompt waited, stops the move (`the folders changed while confirming; nothing
+   moved`). Sessions that appeared under OLD meanwhile are repointed too.
+6. `os.Rename(OLD, NEW)`. There is no copy fallback: a move across filesystems
+   fails as `move <OLD> to <NEW>: <err>` and changes nothing.
+7. Rewrite, for each selected session, the top-level `cwd:` and `git_root:`
+   lines of `workspace.yaml` that are under OLD to `NEW + rest` (NEW with symlinks
+   resolved, as Copilot records it), single-quoted
+   when the old value was quoted or YAML would misread the new one (`: `, ` #`,
+   a leading indicator character). Every other byte stays the same, and the file is replaced atomically with its
+   permissions kept. In one DB transaction, rewrite `sessions.cwd` the same
+   way.
+8. A `workspace.yaml` that fails is reported as `failed: <id>: <err>` and the
+   others still go ahead; the command then exits 1. Nothing is rolled back:
+   rerunning the same move takes step 2's moved-by-hand path and finishes the
+   job.
+
+History keeps the old path: `events.jsonl`, `turns`, `search_index`,
+`session_files` and `rewind-file-snapshots/`. Copilot's own `config.json`
+(trusted folders) is not touched, so Copilot asks to trust the new folder again.
+There is no automatic backup; the help text points to `backup`.
+
 ## 7. Help text
 
 Root description: `List, clean, back up and restore GitHub Copilot CLI sessions.`
@@ -489,7 +541,7 @@ The root help must also mention:
 
 Port the per-flag help strings from the Python script, except `-q` (6.1–6.3).
 Every `Short` is capitalised with no full stop, as Cobra's own commands are.
-`list`, `clean`, `backup` and `restore` each have an `Example:` section drawn
+`list`, `clean`, `backup`, `restore` and `move` each have an `Example:` section drawn
 from the README *Examples*.
 
 ## 8. Shell completion
@@ -510,6 +562,7 @@ Dynamic completions:
 | `--grep`, `--keep` | no completion (`ShellCompDirectiveNoFileComp`) |
 | `restore` argument | `latest`, then the full paths of backups in the backup dir (newest first), then `*.tar.gz` files |
 | `backup` FILE | files with the `tar.gz` extension |
+| `move` OLD, NEW | directories (`ShellCompDirectiveFilterDirs`) |
 
 ## 9. Tests
 
