@@ -386,6 +386,27 @@ Verdict: rework (P1). This was the second rework round of this invocation, so th
 - R2 (noted in round 2) is closed by the same refusal.
 - `just lint`, `just test`, `just test-linux` green; `GOOS=windows go vet` clean. cprobe re-check skipped: the container was not running.
 
+### Scoped re-review — round 6 (2026-11-11)
+
+This round read the round 5 fix commit bc8fa11 (recorded above as 78b0ff5; the same commit after the rebase).
+
+| id | severity | class | disposition | description | evidence | suggestion |
+|---|---|---|---|---|---|---|
+| S1 | non-blocking | correctness | fixed inline | NEW was resolved once, before the prompt. A symlink on NEW's path retargeted while the prompt waited sent the folder to the new target and the sessions to the old resolved path, exit 0. The symlinked-OLD check was not repeated either. Same class as F4/F13. | Reviewer repro (throwaway test): `lnk -> safe`, retargeted to `other` during the prompt; `cwd: …/safe/moved` while the folder landed in `other/moved`. | Fixed in `fix(cli): move re-checks NEW's resolution after the prompt (CS-017)` (024b920): the symlinked-OLD check moved into `moveSides`, and `moveTarget` runs again after the confirm; any change stops the move with nothing done. Test `TestMoveRecheckNewTarget` (fails when the comparison is disabled); spec §6.6 step 5 updated. |
+| S2 | non-blocking | docs-gap | fixed inline | README "Move a project folder" did not list the symlinked-OLD refusal. | `README.md:92-94`. | Added to the refusals sentence (same commit). |
+
+Disposition summary: 0 blocking; 2 non-blocking, both fixed inline (S1, S2); 0 new tickets. Round 5's P1 is met, and P2, P3, P4 and R2 are closed.
+
+Verdict: done.
+
+- [x] Reviewer independence (step 0): delegated scoped re-review, hunt one pass; nothing discarded; S1 re-verified by the orchestrator through the new test (fails without the fix).
+- [x] Stale-branch check (step 0a): `pickle doctor` clean for CS-017.
+- [x] Implementation audit: P1 met; `just lint`, `just test`, `just test-linux`, `GOOS=windows go vet` green (also after S1/S2). cprobe real-data check by the reviewer: `/work/r6p` → `/work/r6q` repointed, `list --cwd` and `copilot --resume=<id>` worked, and a symlinked OLD was refused with exit 2. The interactive picker's Location/ranking was not re-scraped this round (verified at round 2 and in the original acceptance).
+- [x] Correctness hunt: one pass over 8 angles on bc8fa11; S1 reproduced.
+- [x] Consistency and docs audits: clean apart from S2; no docs build is configured.
+- [ ] Docs-readability pass (step 4b): conscious skip; optional.
+- [x] Impact sweep (step 8): no ticket in `1-to-do/` or `2-ready/` references CS-017.
+
 ## History
 
 - 2026-11-09 — created (TO DO). source: chat: user asked for a way to move a project folder Copilot was used in; findings from a Copilot CLI 1.0.108 probe in Docker
@@ -404,3 +425,4 @@ Verdict: rework (P1). This was the second rework round of this invocation, so th
 - 2026-11-11 — REWORK → IN REVIEW: V1 fixed
 - 2026-11-11 — IN REVIEW → REWORK: re-review round 5: 1 blocking (P1); rework cap reached
 - 2026-11-11 — REWORK → IN REVIEW: findings fixed (P1)
+- 2026-11-11 — IN REVIEW → DONE: re-review round 6: 0 blocking; S1, S2 fixed inline; 0 new tickets

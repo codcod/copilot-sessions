@@ -20,11 +20,10 @@ Last updated: 2026-11-11
 
 ## IN REVIEW
 
-### copilot-sessions (1/1)
+### copilot-sessions (0/1)
 
 | id | title | depends-on |
 |---|---|---|
-| CS-017 | move command: relocate a project directory and repoint its sessions | [] |
 
 ## REWORK
 
@@ -69,6 +68,7 @@ Last updated: 2026-11-11
 | CS-014 | macOS: match copilot case-insensitively in process detection | yes — merged to main (PR #15, 16da929, https://github.com/codcod/copilot-sessions/commit/16da929) |
 | CS-015 | Fix the two Windows CI test failures after CS-010 | yes — merged to main (PR #14, d6c78a5, https://github.com/codcod/copilot-sessions/commit/d6c78a5) |
 | CS-016 | Windows: lowercase the live-process expectation in TestWindowsProcesses | yes — merged to main (PR #16, 60b81fd, https://github.com/codcod/copilot-sessions/commit/60b81fd) |
+| CS-017 | move command: relocate a project directory and repoint its sessions | no — publish-gated |
 
 ## DROPPED
 
